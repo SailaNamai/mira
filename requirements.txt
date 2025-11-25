@@ -1,0 +1,14 @@
+dateparser
+torchaudio==2.8.0
+torch==2.8.0
+vosk
+ddgs
+trafilatura
+pdfminer.six
+requests
+pywebview
+pyqt6-sip
+llama-cpp-python
+Flask~=3.1.2
+flask-cors
+flask-socketio

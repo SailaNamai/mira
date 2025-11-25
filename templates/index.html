@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, user-scalable=no">
+  <title>Mira</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+  <link rel="icon" href="{{ url_for('static', filename='img/icon.png') }}" type="image/png">
+
+  <!-- optional: small inline script to set CSS --vh on first paint -->
+  <script>
+    (function setVh(){
+        function updateVh() {
+            // Use visualViewport if available, otherwise fallback to window
+            let height = window.visualViewport
+                ? window.visualViewport.height
+                : window.innerHeight;
+
+            document.documentElement.style.setProperty('--vh', `${height * 0.01}px`);
+        }
+
+        // Add multiple event listeners for comprehensive coverage
+        window.addEventListener('resize', updateVh);
+        window.addEventListener('orientationchange', updateVh);
+
+        if (window.visualViewport) {
+            window.visualViewport.addEventListener('resize', updateVh);
+        }
+
+        // Initial call
+        updateVh();
+    })();
+  </script>
+    <script src="{{ url_for('static', filename='js/quagga2.min.js') }}"></script>
+</head>
+<body>
+    <div class="chat-container">
+        <header class="chat-header">
+            <div class="chat-icons">
+                <!-- Nutrition Icon -->
+                {% include 'nutrition-modal.html' %}
+                <svg id="nutrition-icon" width="24" height="24" fill="none" class="icon-nutrition" viewBox="0 0 512 512" stroke="currentColor" stroke-width="16" xmlns="http://www.w3.org/2000/svg">
+                  <path stroke-linecap="round" stroke-linejoin="round" fill="none"
+                        d="M445.588 56l-.026 384.352c6.881 11.323 14 15.677 19.97 15.648 5.924-.028 12.967-4.434 19.714-15.418L466.82 244.27l-.215-2.391 1.475-1.906c21.174-27.169 28.573-74.108 22.533-113.81-3.02-19.852-9.342-37.82-18.195-50.522-7.424-10.652-16.28-17.447-26.828-19.641h-.002zm-372.375.004l-.016 67.127-12.56-.016V56.008H46.332l.002 67.11H33.756v-67.11h-14.57v103.228c-.001 11.417 6.23 17.748 16.04 21.662l4.06 1.622-.09 4.37c-2 84.57-3.977 169.139-5.962 253.708C40.074 451.79 47.1 456.028 52.95 456c5.85-.028 12.87-4.377 19.623-15.432-2.315-84.547-4.63-169.096-6.941-253.644l-.12-4.4 4.073-1.606c10.324-4.106 17.039-11.074 17.039-21.676V56.004h-13.41zM256 95A161 161 0 0 0 95 256a161 161 0 0 0 161 161 161 161 0 0 0 161-161A161 161 0 0 0 256 95z"/>
+                </svg>
+                <!-- Camera Icon -->
+                <svg width="24" height="24" fill="none" class="icon-camera" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M4 7h2l2-3h8l2 3h2a2 2 0 012 2v10a2 2 0 01-2 2H4a2 2 0 01-2-2V9a2 2 0 012-2z" />
+                  <circle cx="12" cy="13" r="3" stroke="currentColor" stroke-width="2" fill="none"/>
+                </svg>
+                <!-- Settings Icon -->
+                {% include 'settings-modal.html' %}
+                <svg width="24" height="24" fill="currentColor" class="icon-settings" viewBox="0 0 24 24">
+                    <path style="fill:#030104;" d="M12.486,8.162c0.598-2.139,0.055-4.53-1.623-6.213C9.189,0.283,6.824-0.263,4.699,0.314l3.602,3.603
+                    L7.355,7.443L3.824,8.387l-3.604-3.6c-0.574,2.127-0.027,4.49,1.645,6.162c1.748,1.751,4.271,2.266,6.477,1.547l0.021,0.02
+                    l14.818,14.818c0.586,0.585,1.355,0.881,2.123,0.881c0.77,0,1.535-0.296,2.123-0.881c1.172-1.17,1.172-3.069,0-4.246L12.486,8.162z
+                     M25.562,26.831c-0.631,0-1.141-0.513-1.141-1.147s0.51-1.146,1.141-1.146c0.637,0,1.152,0.512,1.152,1.146
+                    S26.199,26.831,25.562,26.831z"/>
+                </svg>
+                <!-- Shopping List Icon -->
+                {% include 'list-modal.html' %}
+                <svg width="24" height="24" fill="currentColor" class="icon-shopping-list" viewBox="0 0 24 24">
+                    <path d="M3 5h6v2H3V5zm0 6h6v2H3v-2zm0 6h6v2H3v-2zM13 5h8v2h-8V5zm0 6h8v2h-8v-2zm0 6h8v2h-8v-2z"/>
+                </svg>
+                <!-- Attachment Icon -->
+                <div class="attachment-wrapper">
+                    <svg width="24" height="24" fill="currentColor" class="icon-attach" viewBox="0 0 24 24">
+                        <path d="M16.5 6.5L8.91 14.09a3.003 3.003 0 104.24 4.24l7.07-7.07a5.002 5.002 0 00-7.07-7.07L5.64 11.64a7.003 7.003 0 109.9 9.9l8.49-8.49-1.41-1.41-8.49 8.49a5.003 5.003 0 01-7.07-7.07l7.07-7.07a3.003 3.003 0 014.24 4.24l-7.07 7.07-1.41-1.41 7.07-7.07z"/>
+                    </svg>
+                    <!-- Red X icon (hidden by default) -->
+                    <svg width="12" height="12" fill="red" class="icon-remove-attachment" viewBox="0 0 24 24" style="display: none;">
+                        <path d="M18 6L6 18M6 6l12 12" stroke="red" stroke-width="2" stroke-linecap="round"/>
+                    </svg>
+                </div>
+                <!-- New Chat Icon -->
+                <svg width="24" height="24" fill="currentColor" class="icon-new-chat" viewBox="0 0 24 24">
+                    <path d="M12 5v14m-7-7h14" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <!-- Hidden file input -->
+                <input type="file" id="file-input" style="display: none;" />
+            </div>
+        </header>
+
+        <section id="messages" class="chat-messages"></section>
+
+        <form id="chat-form" class="chat-input">
+            <input type="text" id="user-input" placeholder="Ask Mira…" autocomplete="off" required />
+            <button type="submit">Voice</button>
+        </form>
+    </div>
+
+    <!-- Script loaders -->
+    <script src="{{ url_for('static', filename='js/socket.io.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/new_chat.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/attachment.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/sounds.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/picture.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/permanent_storage.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/chat_scroll_down.js') }}"></script>
+
+</body>
+</html>

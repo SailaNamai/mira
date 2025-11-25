@@ -1,0 +1,192 @@
+<!-- templates/list-modal.html -->
+<div id="shopping-list-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <div class="modal-tabs">
+            <button class="tab active" data-list="shopping">Shopping</button>
+            <button class="tab" data-list="todo">ToDo</button>
+        </div>
+        <div id="list-container" class="list-container">
+            <!-- List items will be dynamically populated here -->
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const listIcon = document.querySelector('.icon-shopping-list');
+    const modal = document.getElementById('shopping-list-modal');
+    const listContainer = document.getElementById('list-container');
+    const tabs = document.querySelectorAll('.modal-tabs .tab');
+
+    // Mapping of list types to their JSON file paths
+    const listPaths = {
+        shopping: '/static/lists/shopping_list.json',
+        todo: '/static/lists/to_do_list.json'
+    };
+
+    // Currently active list type
+    let currentListType = 'shopping';
+
+    // Toggle modal visibility
+    listIcon.addEventListener('click', function() {
+        modal.style.display = 'block';
+        loadList(currentListType);
+    });
+
+    // Close modal when clicking outside
+    window.addEventListener('click', function(event) {
+        if (event.target === modal) {
+            modal.style.display = 'none';
+        }
+    });
+
+    // Tab switching
+    tabs.forEach(tab => {
+        tab.addEventListener('click', function() {
+            // Remove active class from all tabs
+            tabs.forEach(t => t.classList.remove('active'));
+
+            // Add active class to clicked tab
+            this.classList.add('active');
+
+            // Set current list type and load corresponding list
+            currentListType = this.dataset.list;
+            loadList(currentListType);
+        });
+    });
+
+    // Load list based on type
+    function loadList(listType) {
+        fetch(listPaths[listType])
+            .then(response => response.json())
+            .then(items => {
+                // Clear previous items
+                listContainer.innerHTML = '';
+
+                // Create clickable div for each item
+                items.forEach((item, index) => {
+                    const itemDiv = document.createElement('div');
+                    itemDiv.textContent = item;
+                    itemDiv.classList.add('list-item');
+
+                    // Remove item when clicked
+                    itemDiv.addEventListener('click', function() {
+                        // Remove item from the list
+                        removeItemFromList(index, items, listType);
+                    });
+
+                    listContainer.appendChild(itemDiv);
+                });
+            })
+            .catch(error => {
+                console.error(`Error loading ${listType} list:`, error);
+                listContainer.innerHTML = `<div>Error loading ${listType} list</div>`;
+            });
+    }
+
+    // Remove item from list
+    function removeItemFromList(index, items, listType) {
+        // Remove the item at the specified index
+        items.splice(index, 1);
+
+        // Save the updated list back to the file
+        fetch(`/save_${listType}_list`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(items)
+        })
+        .then(response => response.json())
+        .then(() => {
+            // Reload the list to reflect changes
+            loadList(listType);
+        })
+        .catch(error => {
+            console.error(`Error removing item from ${listType} list:`, error);
+        });
+    }
+});
+</script>
+
+<style>
+.modal-tabs {
+    display: flex;
+    border-bottom: 2px solid #e0e0e0;
+    margin-bottom: 15px;
+}
+
+.tab {
+    flex-grow: 1;
+    padding: 10px 15px;
+    text-align: center;
+    background-color: transparent;
+    border: none;
+    color: #666;
+    font-weight: 500;
+    position: relative;
+    transition: color 0.3s ease;
+    cursor: pointer;
+}
+
+.tab:hover {
+    color: #333;
+}
+
+.tab.active {
+    color: #000;
+    font-weight: 600;
+}
+
+.tab.active::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background-color: #000;
+    transition: background-color 0.3s ease;
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0,0,0,0.5);
+    overflow: auto;
+}
+.modal-content {
+    background-color: white;
+    margin: 15% auto;
+    padding: 20px;
+    border-radius: 5px;
+    width: 80%;
+    max-width: 500px;
+    max-height: 70vh; /* Limit height to 70% of viewport height */
+}
+
+.list-container {
+    max-height: 400px; /* Fixed max height */
+    overflow-y: auto; /* Enable vertical scrolling */
+}
+
+.list-item {
+    padding: 10px;
+    border-bottom: 1px solid #eee;
+    cursor: pointer;
+    word-wrap: break-word; /* Ensure long words don't overflow */
+}
+
+.list-item:hover {
+    background-color: #f0f0f0;
+}
+
+.list-item:active {
+    background-color: #e0e0e0;
+}
+</style>

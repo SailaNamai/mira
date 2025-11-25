@@ -1,0 +1,29 @@
+# Ignore specific file types
+*.gguf
+*.db
+*.log
+*.zip
+*.pem
+*.xspf
+
+# Typical Python/Flask ignores
+__pycache__/
+*.pyc
+.env
+venv/
+
+# Ignore specific files
+/static/sounds/please.wav
+/run.sh
+
+# Ignore folders
+/llama.cpp/.git
+/llama-cpp-python/.git
+/static/vosk-model-en-us-0.42-gigaspeech/
+/static/xtts-v2/
+/Backups/
+/.mira/
+/UI Soundpack/
+/llama-cpp-python/
+/llama.cpp/
+/.idea/
