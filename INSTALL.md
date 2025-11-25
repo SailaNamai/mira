@@ -81,8 +81,7 @@ Without https we can not access the phones mic and camera when using the local n
 
 Without http we can not use a cloudflare tunnel (explodes when its own https clashes with ours) and the browser extensions need http.
 
-Set ALLOWED_KEYS and SECRET_KEY in services/globals.py
-- Then access: 
+After entering the passkeys (at first startup) you can access: 
   - https://Your.IP:5001/login?token=ONE_OF_YOUR_ALLOWED_KEYS or 
   - with Cloudflare tunnel: https://yourdomain.org/login?token=ONE_OF_YOUR_ALLOWED_KEYS or
   - http://Your.IP:5002/login?token=ONE_OF_YOUR_ALLOWED_KEYS

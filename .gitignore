@@ -15,6 +15,7 @@ venv/
 # Ignore specific files
 /static/sounds/please.wav
 /run.sh
+/services/passkeys.py
 
 # Ignore folders
 /llama.cpp/.git
