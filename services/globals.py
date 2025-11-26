@@ -13,6 +13,7 @@ PLAYLIST_FILENAMES = {}  # Dict of stem → filename
 PLUGS = {}
 PASSKEYS_PATH = BASE_PATH / "services" / "passkeys.py"
 
+# Query for keys on first init
 try:
     from .passkeys import ALLOWED_KEYS, SECRET_KEY
 except ImportError:
@@ -23,7 +24,7 @@ except ImportError:
     print("[Authenticate] These keys control API/web access")
 
     # Prompt for input (won't echo SECRET_KEY if you want extra safety, but let's keep it simple)
-    allowed_input = input("[Authenticate] Enter ALLOWED_KEYS (comma-separated, e.g. 'key1,key2'): ").strip()
+    allowed_input = input("[Authenticate] Enter ALLOWED_KEYS (user passwords, comma-separated, e.g. 'key1,key2'): ").strip()
     secret_input = input("[Authenticate] Enter SECRET_KEY (single string): ").strip()
 
     if not allowed_input or not secret_input:
@@ -48,6 +49,7 @@ SECRET_KEY = "{SECRET_KEY}"
         print(f"[Authenticate]passkeys.py created at: {PASSKEYS_PATH}")
         print("[Authenticate] Dev? Added to .gitignore?")
 
+# Attachment state handler
 class HasAttachment:
     _has_attachment = False
     @classmethod

@@ -2,6 +2,14 @@
 
 A fully local, voice-first home assistant powered by LLMs: No cloud. No tracking.
 
+[video_demo.mp4](static/readme/video_demo.mp4)
+
+<p align="center">
+  <video src="static/readme/video_demo.mp4" width="800">
+    Your browser does not support the video tag.
+  </video>
+</p>
+
 It is **very** alpha and currently only suited to DIY enthusiasts.
 - I apologize in advance to anyone going insane trying to install.
 - Check [install.md](INSTALL.md) for a rough guide (I'll help if asked).
@@ -61,9 +69,12 @@ It is **very** alpha and currently only suited to DIY enthusiasts.
 
 ### isVoice+Textify
 Currently using Vosk, running on CPU.
+
+Why Vosk when better models exist? Short answer: Hardware.
+
 - Results are mixed, the LLM interpreter catches some but not all errors.
   - Vosk is a very polite listener: 
-    - Starting a query with "please" will jolt it to attention with the P and familiar word and reduce error rate.
+    - ~~Starting a query with "please" will jolt it to attention with the P and familiar word and reduce error rate.~~
     - Having no accent/being a native speaker helps.
     - Not having a cold helps.
     - Pressing the voice button a short while before speaking and holding it a little afterward helps. 
@@ -186,6 +197,7 @@ Answers anything that is not a command
 
 ### Voice out:
 Currently using xtts-v2.
+- Why xtts-v2 when better models exist? Short answer: Hardware. 
 
 [output_demo.wav](static/readme/output_demo.wav)
 

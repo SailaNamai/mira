@@ -137,7 +137,7 @@ def get_system_prompt_weather():
     lat = location_data.get("location_latitude")
     lon = location_data.get("location_longitude")
     weather_reports = []
-    for i in range(3):
+    for i in range(3): # 3 seems to suit my needs and not blow context. 7 would be nice to include the next weekend.
         day = datetime.now() + timedelta(days=i)
         formatted_day = day.strftime("%Y-%m-%d")
         report = get_weather(lat, lon, date=formatted_day, debug=False)

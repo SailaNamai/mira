@@ -1,51 +1,40 @@
-or) is epenthetic, and is now found as well in Modern Dutch donder (cf. Middle Dutch donre; also Old Norse þorr, Old Frisian þuner, Old High German donar, all ultimately descended from Proto-Germanic *þunraz). In Latin the term was tonare "to thunder". The name of the Nordic god Thor comes from the Old Norse word for thunder.[5]
-The shared Proto-Indo-European root is (s)tónh₂-r̥, also found in Gaulish Taranis.[6]
-Cause
-[edit]The cause of thunder has been the subject of centuries of speculation and scientific inquiry.[7] Early thinking was that it was made by deities, but the ancient Greek philosophers attributed it to natural causes, such as wind striking clouds (Anaximander, Aristotle) and movement of air within clouds (Democritus).[8] The Roman philosopher Lucretius held it was from the sound of hail colliding within clouds.[8] By the mid-19th century, the accepted theory was that lightning produced a vacuum and that the collapse of that vacuum produced what is known as thunder.[7]
-Scientists have agreed since the 20th century that thunder must begin with a shock wave in the air due to the sudden thermal expansion of the plasma in the lightning channel.[9][8] The temperature inside the lightning channel, measured by spectral analysis, varies during its 50 μs existence, rising sharply from an initial temperature of about 20,000 K to about 30,000 K, then dropping away gradually to about 10,000 K. The average is about 20,400 K (20,100 °C; 36,300 °F).[10] This heating causes a rapid outward expansion, impacting the surrounding cooler air at a speed faster than sound would otherwise travel. The resultant outward-moving pulse is a shock wave,[11] similar in principle to the shock wave formed by an explosion, or at the front of a supersonic aircraft. Near the source, the sound pressure level of thunder is usually 165 to 180 dB, but can exceed 200 dB in some cases.[12]
-Experimental studies of simulated lightning have produced results largely consistent with this model, though there is continued debate about the precise physical mechanisms of the process.[13][9] Other causes have also been proposed, relying on electrodynamic effects of the enormous current acting on the plasma in the bolt of lightning.[14]
-Consequences
-[edit]The shock wave in thunder is sufficient to cause property damage[7] and injury, such as internal contusion, to individuals nearby.[15] Thunder can rupture the eardrums of people nearby, leading to permanently impaired hearing.[7] Even if not, it can lead to temporary deafness.[7]
-Types
-[edit]Vavrek et al. (n.d.) reported that the sounds of thunder fall into categories based on loudness, duration, and pitch.[7] Claps are loud sounds lasting 0.2 to 2 seconds and containing higher pitches. Peals are sounds changing in loudness and pitch. Rolls are irregular mixtures of loudness and pitches. Rumbles are less loud, last for longer (up to more than 30 seconds), and are of low pitch.[16]
-Inversion thunder results when lightning strikes occur between the cloud and ground during a temperature inversion. The resulting thunder sounds have significantly greater acoustic energy than those produced from the same distance in non-inversion conditions. In a temperature inversion, the air near the ground is cooler than the air higher up. Inversions often happen when warm, moist air passes above a cold front. Within a temperature inversion, sound energy is prevented from dispersing vertically as it would in non-inversion conditions, and is thus concentrated in the near-ground layer.[17]
-Cloud-to-ground lightning (CG) typically consists of two or more return strokes, from ground to cloud. Later return strokes have greater acoustic energy than the first.[18]
-Perception
-[edit]The most noticeable aspect of lightning and thunder is that the lightning is seen before the thunder is heard. This is a consequence of the speed of light being much greater than the speed of sound. The speed of sound in dry air is approximately 343 m/s (1,130 ft/s) or 1,236 km/h (768 mph) at 20 °C (68 °F; 293 K).[19]
-This translates to approximately 3 s/km (4.8 s/mi); saying "one thousand and one... one thousand and two..." is a useful method of counting the seconds from the perception of a given lightning flash to the perception of its thunder (which can be used to gauge the proximity of lightning for the sake of safety). To estimate the distance from the lightning strike, divide the counted seconds by five for miles,[20] or three for kilometers.
-A very bright flash of lightning and an almost simultaneous sharp "crack" of thunder, a thundercrack, therefore indicates that the lightning strike was very near.
-Close-in lightning has been described first as a clicking or cloth-tearing sound, then a cannon shot sound or loud crack/snap, followed by continuous rumbling.[7] The early sounds are from the leader parts of lightning, then the near parts of the return stroke, then the distant parts of the return stroke.[7]
-See also
-[edit]- Brontophobia (fear of thunder)
-- Castle Thunder sound effect
-- Lightning
-- List of thunder gods
-- Mistpouffers
-- Sonic boom
-- Thunderbolt
-- Thunderstorm
-References
-[edit]- ^ "Severe Weather 101: Lightning Basics". nssl.noaa.gov. Retrieved October 23, 2019.
-- ^ "Thunder Facts". factsjustforkids.com. Retrieved October 23, 2019.
-- ^ "The Sound of Thunder". weather.gov. Retrieved October 23, 2019.
-- ^ "What Causes Lightning and Thunder?". NOAA. 2022.
-- ^ "thunder". Oxford English Dictionary (2 ed.). Oxford, England: Oxford University Press. 1989.
-- ^ Matasovic, Ranko. Etymological Dictionary of Proto Celtic. Leiden, The Netherlands: Brill. 2009. p. 384. ISBN 978-90-04-17336-1
-- ^ a b c d e f g h Vavrek, R. J.; Kithil, R.; Holle, R. L.; Allsopp, J.; Cooper, M. A. (17 July 2006) [4 April 2006]. "Section 6.1.8: The Science of Thunder". National Lightning Safety Institute. Archived from the original on 17 July 2006. Retrieved 11 June 2022.
-- ^ a b c Heidorn, Keith C. (1999). "Thunder: Voice of the heavens". Archived from the original on 1999-10-23.
-- ^ a b Rakov, Vladimir A.; Uman, Martin A. (2007). Lightning: Physics and Effects. Cambridge, England: Cambridge University Press. p. 378. ISBN 978-0-521-03541-5.,
-- ^ Cooray, Vernon (2003). The lightning flash. London: Institution of Electrical Engineers. pp. 163–164. ISBN 978-0-85296-780-5.
-- ^ "Thunder". Encyclopædia Britannica. Archived from the original on 2008-06-07. Retrieved 2008-09-12.
-- ^ "Ultimate Sound Pressure Level Decibel Table". Retrieved 2020-12-13.
-- ^ MacGorman, Donald R.; Rust, W. David (1998). The Electrical Nature of Storms. Oxford University Press. pp. 102–104. ISBN 978-0195073379. Archived from the original on 2014-06-28. Retrieved 2012-09-06.
-- ^ P Graneau (1989). "The cause of thunder". J. Phys. D: Appl. Phys. 22 (8): 1083–1094. Bibcode:1989JPhD...22.1083G. doi:10.1088/0022-3727/22/8/012. S2CID 250836715.
-- ^ Fish, Raymond M (2021). "Thermal and mechanical shock wave injury". In Nabours, Robert E (ed.). Electrical injuries: engineering, medical, and legal aspects. Tucson, AZ: Lawyers & Judges Publishing. p. 220. ISBN 978-1-930056-71-8.
-- ^ "Thunder Facts". Fast Facts for Kids. 2022.
-- ^ Dean A. Pollet and Micheal M. Kordich (2013-04-08). "User's guide for the Sound Intensity Prediction System (SIPS) as installed at the Naval Explosive Ordnance Disposal Technology Division (Naveodtechdiv)" (PDF). Systems Department February 2000. dtic.mil. Archived from the original on April 8, 2013.
-- ^ "Lightning Types". NOAA National Severe Storms Laboratory. 2022.
-- ^ Handbook of Chemistry and Physics, 72nd edition, special student edition. Boca Raton: The Chemical Rubber Co. 1991. p. 14.36. ISBN 978-0-8493-0486-6.
-- ^ "Understanding Lightning: Thunder". National Weather Service. 2022.
-External links
-[edit]- The Science of Thunder Archived 2007-10-15 at the Wayback Machine—National Lightning Safety Institute
-- Thunder: A Child of Lightning by Keith C. Heidorn, PhD, ACM
-- Storm: Thunder sounds in binaural audio
+Extracted from https://apnews.com/article/government-shutdown-snap-thanksgiving-holiday-7a812cfb02cadf5f61ebab0b4784d8e2:
+
+Gratitude and doubt: The effects of the shutdown linger as families prepare for Thanksgiving
+She had it figured down to the last dollar. The looming insurance payment, balanced against the hard-earned paycheck. The cost of keeping her children fed, covered mostly with government SNAP assistance. And when Shelby Williams reviewed the family budget for November, she told herself that this month would truly be one for giving thanks.
+After living with her parents for more than two years, Williams and her two children were finally moving into an apartment of their own in her hometown of Reeds Spring, Missouri. They would celebrate with a Thanksgiving meal made by the kids, the grandparents joining them at the table.
+The funds for the needed groceries were all lined up — until the federal government shut down on Oct. 1.
+Now Washington is running again. But as Americans prepare for the Thanksgiving holiday, the relieved gratitude of families in Williams’ community, and the many others still recovering from the suspension of government paychecks and food assistance during the 43-day shutdown, is tempered by lingering stress and economic insecurity.
+“I’m thankful for my children and my job, and I’m thankful for SNAP because it supplies food,” said Williams, 32, who works as a paraprofessional in an elementary school. “But … with the way the world is, with the financial strain, it is hard to be thankful.”
+The anxiety stirred by the shutdown persists in the lines at food pantries in this southwestern Missouri county and echoes through households nationwide.
+Dealing with the shutdown’s fallout
+In South Florida, Darlene Castillo is still struggling to prop up her family’s fragile finances after working without pay for seven weeks at the U.S. Customs Service.
+To get by, she lined up at a mobile food bank, a first for her. She held off paying bills and canceled subscriptions. Family members sent money, and when one extended an invitation for Thanksgiving, she and her husband gratefully accepted, knowing that they’d be hard-pressed to host the holiday meal.
+“It’s a thankful time,” Castillo said last week. “I’ll bring a dish because hopefully this week we’ll get paid. And then we’ll worry about Jan. 30.”
+That’s when the funds just approved by Congress to reopen the government are set to run out, threatening yet another shutdown.
+In New Jersey, Kelvin McNeil is equally mindful that restored Supplemental Nutrition Assistance Program benefits could again be taken away.
+During the shutdown, McNeil said he got by on the modest stipend he receives as a trainee in a culinary program run by the Trenton Area Soup Kitchen. But attending classes meant missing the hours food pantries were open. His wife, who is disabled and counts on him to bring home SNAP-funded groceries, grew distraught.
+“If it was any longer, I don’t know what I would’ve done,” said McNeil, whose relief is compounded by news that after months of radiation treatment, his prostate cancer is in remission. “I got a lot to be thankful for right now.”
+Community support for stretched resources
+In Williams’ Missouri community, a haven for retirees on modest fixed incomes, the lapse in SNAP funds has added to the pressures on families who stretch to buy daily necessities.
+In early November, a startling 428 families lined up at a drive-through food pantry run by Carrie Padilla and church volunteers, in a county with about 32,000 residents. About 12% of households in the county rely on SNAP benefits, but it is closer to 17% in rural areas.
+Though SNAP has been restored, many families registering for a Christmas toy drive run by Padilla’s nonprofit indicate that they are entering the holiday season without enough food.
+“Almost everybody is antsy,” Padilla said. “Just because the government reopened, it doesn’t mean that somebody has waved a wand and suddenly everything’s all hunky-dory.”
+That uncertainty has figured into Shirley Mease’s planning, as she prepares to host a free Thanksgiving feast at Reeds Spring High School. Mease and her family anticipate serving and delivering 700 meals, up from about 625 last year, to account for food insecurity worsened by the shutdown.
+“I know (SNAP) is back in working order, but it will take time for that to really help people out,” said Mease, 73, a semi-retired school cafeteria worker who has been providing the feast since 2009, drawing on community donations and volunteers.
+“Especially in this area, the food banks are being hit very hard, so I just feel like this is a time to step it up a little bit,” she said.
+Feeling the pressure without SNAP
+The pressure of trying to get through November without SNAP weighed on Williams in the weeks leading up to the holiday.
+She had planned the move to the new apartment for months, carefully balancing income and expenses to account for the $600 rent. The math worked thanks in no small part to $450 in monthly benefits her family receives from SNAP. That covers their food bill after the two free meals served each school day.
+As the shutdown stretched on, the Trump administration announced it would suspend November SNAP payments, despite judges’ orders to use available emergency funds. With her move days away, Williams started November with just $25 left in her SNAP account.
+She used the funds to buy bread, peanut butter, jelly and milk, and a friend with chickens gave her eggs. The fixings lasted through four nights of sandwich dinners. Then her parents stepped in to help.
+Williams tried to keep her stress hidden from her 11-year-old son and 8-year-old daughter. But it was hard to avoid tearing up or getting angry.
+“What bills do I not pay so I can feed my children, because that’s the priority,” she said.
+Faced with a difficult choice
+There were other factors to consider, too. Williams said she loves her job, working with students in a special education classroom. In her off-hours she is studying to become a teacher, a pursuit that required taking out a student loan.
+The suspension of SNAP confronted her with a difficult choice. She knew she could earn more at Walmart than doing the classroom job she treasures.
+“But then I’m giving up a part of my dream,” she said.
+It never came to that. Three days after the shutdown ended, Missouri officials sent $217 to Williams’ SNAP account, just under half what she receives in an ordinary month.
+That helped refill her family’s refrigerator, but it was not enough to afford the luxury of a Thanksgiving celebration. Williams held off paying a bill for car insurance, due at month’s end, reserving the money in case it was needed for food.
+Then, last Friday morning, the remainder of the SNAP funds for November showed up in Williams’ account. Finally, she could exhale. She paid the insurance bill. Then she treated her children to ice cream.
+The anxiety that had weighed on Williams for weeks lingered. But it was still November and her family had so much to be thankful for.

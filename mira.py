@@ -462,7 +462,7 @@ def run_flask():
 
     cert = BASE_PATH / "mira_cert.pem"
     key = BASE_PATH / "mira_key.pem"
-    ssl_context = (cert, key)  # Path to your cert and key
+    ssl_context = (cert, key)
     socketio.run(mira, debug=True, use_reloader=False, host='0.0.0.0', port=5001, ssl_context=ssl_context) #
 
 # local network for browser addon and for the cloudflare tunnel
@@ -471,7 +471,7 @@ def run_flask():
 # sudo systemctl restart cloudflared-mira-tunnel
 # journalctl -u cloudflared-mira-tunnel -f
 def run_http_flask():
-    # we need fucking http only for the Chromium extension... and apparently for cloudflare tunnel
+    # we need fucking http only for the Chromium extension... and apparently for the cloudflare tunnel
     socketio.run(mira, debug=True, use_reloader=False, host='0.0.0.0', port=5002)
 
 def set_qt_identity():

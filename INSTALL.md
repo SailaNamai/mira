@@ -79,7 +79,7 @@ This is messy, because we need two flask servers.
 
 Without https we can not access the phones mic and camera when using the local network.
 
-Without http we can not use a cloudflare tunnel (explodes when its own https clashes with ours) and the browser extensions need http.
+Without http we can not use a cloudflare tunnel (explodes when its own https clashes with ours) and the browser extensions needs http as well.
 
 After entering the passkeys (at first startup) you can access: 
   - https://Your.IP:5001/login?token=ONE_OF_YOUR_ALLOWED_KEYS or 
