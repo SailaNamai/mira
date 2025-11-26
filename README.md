@@ -2,13 +2,9 @@
 
 A fully local, voice-first home assistant powered by LLMs: No cloud. No tracking.
 
-[video_demo.mp4](static/readme/video_demo.mp4)
+**Check the video demo:**
 
-<p align="center">
-  <video src="static/readme/video_demo.mp4" width="800">
-    Your browser does not support the video tag.
-  </video>
-</p>
+[video_demo.mp4](static/readme/video_demo.mp4)
 
 It is **very** alpha and currently only suited to DIY enthusiasts.
 - I apologize in advance to anyone going insane trying to install.
