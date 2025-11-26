@@ -8,6 +8,10 @@ A fully local, voice-first home assistant powered by LLMs: No cloud. No tracking
   Your browser does not support the video tag.
 </video>
 
+<video src="https://github.com//SailaNamai/mira/blob/main/static/readme/video_demo.mp4?raw=true" width="640" height="480" controls preload="metadata">
+  Your browser does not support the video tag. <a href="https://github.com//SailaNamai/mira/blob/main/static/readme/video_demo.mp4?raw=true">Download it here</a>.
+</video>
+
 [video_demo.mp4](static/readme/video_demo.mp4)
 
 It is **very** alpha and currently only suited to DIY enthusiasts.
