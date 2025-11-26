@@ -4,6 +4,8 @@ Driver Version: 580.105.08
 CUDA Version: 13.0
 ```  
 
+### **Clone the repo, then:**
+
 ### CUDA
 This should be pretty straight forward.
 Confirm your GPU supports it:
@@ -40,7 +42,6 @@ Adjust this line
 ```https://huggingface.co/models?search=qwen3```
 
 ### Python
-**Clone the repo**
 
 **CREATE A PYTHON ENVIRONMENT** for the project.
 - Conda might work (untested).
@@ -48,7 +49,7 @@ Adjust this line
 **DO NOT** pip install requirements.txt:
 - llama-cpp-python needs to be built with CUDA
 - torch and torchaudio are CUDA version sensitive
-  - Works for me with the specified versions and CUDA13
+  - Works for me with the specified versions (in requirements.txt) and CUDA13
 - Rest should be fine to just pip install
 
 ### LLama.cpp

@@ -2,7 +2,7 @@
 
 A fully local, voice-first home assistant powered by LLMs: No cloud. No tracking.
 
-**Check the video demo** (save as):
+**Check the video demo** (only 8MB but takes a while):
 
 <video src="https://github.com/user-attachments/assets/24d33745-3181-498f-b466-828c7b116cea" width="640" height="480" controls>
   Your browser does not support the video tag.
@@ -251,13 +251,15 @@ Clicking a link will pass the link_url, empty space on the page will pass the pa
 
 ![demo_list.jpg](static/readme/demo_list.jpg)
 
-- Interpret weather data (done, currently can give today, tomorrow, the day after).
-  - More context is possible but these small models will start struggling (needs prompt engineering). 
-  - Queries open-meteo.com API and exposes ip, longitude, latitude 
-  - Must enter Lat and Lon in frontend for the query to succeed
-- make chat sessions client unique and allow multiple users (not implemented)
-- make chat context a rolling window (not implemented)
-  - Currently fails on max context (start new conversation with + button)
+### Interpret weather data (done, currently can give today, tomorrow, the day after).
+- More context is possible but these small models will start struggling (needs prompt engineering). 
+- Queries open-meteo.com API and exposes IP, longitude, latitude 
+- Must enter Lat and Lon in frontend for the query to succeed
+
+### Make chat sessions client unique and allow multiple users (not implemented)
+
+### Make chat context a rolling window (not implemented)
+- Currently fails on max context (start new conversation with + button)
 
 ### Understand time and user schedule (done, sort of, needs some more tweaking and calendar access)
 - It references fun because sunday is defined as free time in my schedule. 
