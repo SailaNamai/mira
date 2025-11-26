@@ -40,6 +40,8 @@ Adjust this line
 ```https://huggingface.co/models?search=qwen3```
 
 ### Python
+**Clone the repo**
+
 **CREATE A PYTHON ENVIRONMENT** for the project.
 - Conda might work (untested).
 

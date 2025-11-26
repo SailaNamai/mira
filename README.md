@@ -2,7 +2,11 @@
 
 A fully local, voice-first home assistant powered by LLMs: No cloud. No tracking.
 
-**Check the video demo:**
+**Check the video demo** (save as):
+
+<video src="https://github.com/user-attachments/assets/24d33745-3181-498f-b466-828c7b116cea" width="640" height="480" controls>
+  Your browser does not support the video tag.
+</video>
 
 [video_demo.mp4](static/readme/video_demo.mp4)
 
