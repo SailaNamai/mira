@@ -48,22 +48,16 @@ def get_system_prompt_chat():
 ########################################################################################
 """#############################        Intent         ##############################"""
 ########################################################################################
-"""
-Ok, so for multi intent per query we need to:
-Tell it to discern multiple intents and match to possible commands
-Emit a valid json for each. Change the json so it has a user_msg field.
-That way I can remove commands from the chat message.
-Resole commands first, then pass to chat if applicable.
-What of hardcode? Could remove entirely... 
-"""
 def get_system_prompt_intent():
     persona = """Your task is to determine the intent of the user message.
-    - You must output a single, valid json object and nothing else.
+    - You must output valid json objects for every command in the user message.
     - Do not emit (meta) commentary or reasoning.
-    - The json has two fields: intent, command.
+    - Each json has three fields: intent, command, matched.
     - The intent can either be action or chat.
+    - Matched is the corresponding segment of the user message.
     - If there is no match in **possible commands**: Intent is always chat.
-    - If the intent is chat: The command is always: Pass to Mira."""
+    - If the intent is chat: The command is always: Pass to Mira.
+    - If the user message is not fully resolved through commands: Add an intent is chat json."""
 
     possible_commands = """\t- The **possible commands** are:
         - play music
@@ -145,9 +139,9 @@ def get_system_prompt_weather():
     weather_text = "\n\n".join(f"{report}" for report in weather_reports)
     weather_block = _indent(weather_text, 1)
 
-    today = f"- Today is {datetime.now().strftime('%d.%m.%Y')}"
+    today = f"- **Today is {datetime.now().strftime('%d.%m.%Y')}**"
 
-    system_prompt = f"{system}\n{location}\n{weather_block}\n{today}"
+    system_prompt = f"{system}\n{location}\n{weather_block}\n\n{today}"
     with open(log_weather_prompt, "w", encoding="utf-8") as f:
         f.write(system_prompt)
     return system_prompt

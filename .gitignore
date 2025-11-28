@@ -19,6 +19,8 @@ venv/
 /static/readme/video_p1.mp4
 /static/readme/video_p2.mp4
 /static/readme/video_p3.mp4
+/mira20251128.py
+/static/js/chat20251128.js
 
 # Ignore folders
 /llama.cpp/.git
@@ -31,4 +33,3 @@ venv/
 /llama-cpp-python/
 /llama.cpp/
 /.idea/
-

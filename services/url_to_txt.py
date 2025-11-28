@@ -27,7 +27,8 @@ def trim_text_to_token_limit(text, token_limit=500, chars_per_token=4):
     if token_cost <= token_limit:
         return text
     max_chars = token_limit * chars_per_token
-    return text[-max_chars:]
+    # Keep the first characters
+    return text[:max_chars]
 
 def trim_output_txt(token_limit=2000, chars_per_token=4):
     if not output.exists():
@@ -43,12 +44,13 @@ def trim_output_txt(token_limit=2000, chars_per_token=4):
         return
 
     max_chars = token_limit * chars_per_token
-    trimmed = text[-max_chars:]
+    # Keep the first characters
+    trimmed = text[:max_chars]
 
     with open(output, 'w', encoding='utf-8') as f:
         f.write(trimmed)
 
-    print(f"Output trimmed to last {max_chars} characters ({token_limit} tokens).")
+    print(f"Output trimmed to first {max_chars} characters ({token_limit} tokens).")
 
 def save_multiple_urls_text(url_list_str, max_success=5):
     urls = [line.strip() for line in url_list_str.strip().splitlines() if line.strip()]

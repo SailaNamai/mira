@@ -34,7 +34,7 @@ Place XTTS-v2 in ```.../mira/static/xtts-v2.```
 
 ```https://huggingface.co/coqui/XTTS-v2```
 
-Any **non vl** qwen3 model should work. I use unsloth 8b at Q6k. Place at ```.../mira/```
+Any **non vl** qwen3 model should work. I use unsloth 8b at Q6k (use gguf). Place at ```.../mira/```
 Adjust this line 
 
 ```MODEL_PATH = BASE_PATH / "Qwen3-8B-UD-Q6_K_XL.gguf"``` in ```.../mira/services/llm_config.py```

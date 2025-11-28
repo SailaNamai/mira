@@ -36,7 +36,7 @@ from services.url_to_txt import save_url_text
 from services.file_to_txt import is_supported_file, file_to_txt
 from services.stt import get_vosk_model, transcribe_audio
 # intent
-from services.llm_intent import ask_intent, ask_wikipedia, ask_listify, ask_web
+from services.llm_intent import ask_intent, ask_wikipedia, ask_web
 # Chat
 from services.llm_chat import ChatSession, ask_weather
 from services.tts import init_tts, voice_out, split_into_chunks, clean_voice_chunks
@@ -203,38 +203,135 @@ def new_chat():
     HasAttachment.set_attachment(False)
     return jsonify({"status": "new session started"})
 
-# chat, intent
-@mira.route("/chat", methods=["POST"])
-def chat():
+class ChatState:
+    intent = None
+    user_msg = None
+    weather = None
+
+# --- Hardcode route ---
+@mira.route("/hardcode", methods=["POST"])
+def hardcode():
     data = request.get_json(silent=True) or {}
     user_msg = data.get("message", "").strip()
+    ChatState.user_msg = user_msg
 
-
-    # TODO: Remove hardcoded triggers?
-    # Define keyword-function mapping
     if "wikipedia" in user_msg:
         ask_wikipedia(user_msg)
-        intent = {"intent": "chat", "command": "Pass to Mira."}
+        ChatState.intent = {"intent": "chat", "command": "Pass to Mira.", "matched": user_msg}
         HasAttachment.set_attachment(True)
+        print("[Hardcode] Detected wikipedia")
+        return jsonify({"reply": "Hardcode detected: wikipedia"})
+
     elif "web" in user_msg and "search" in user_msg:
         ask_web(user_msg)
-        intent = {"intent": "chat", "command": "Pass to Mira."}
+        ChatState.intent = {"intent": "chat", "command": "Pass to Mira.", "matched": user_msg}
         HasAttachment.set_attachment(True)
-    else:
-        try:
-            raw_intent = ask_intent(user_msg)
-            intent = json.loads(raw_intent)
-            if not isinstance(intent, dict):
-                return jsonify({"reply": "Invalid intent response: not a JSON object"})
-        except json.JSONDecodeError:
-            return jsonify({"reply": "Invalid intent response: not a valid JSON"})
-        except Exception as e:
-            return jsonify({"reply": f"Error parsing intent: {str(e)}"})
+        print("[Hardcode] Detected web search")
+        return jsonify({"reply": "Hardcode detected: web search"})
 
-    # TODO: Wrap in "for every intent. resolve actions first"
-    intent_name = intent.get("intent")
-    # TODO: IMPLEMENT: Lookup DB for a match
-    if intent_name == "chat":
+    else:
+        # no hardcode detected
+        ChatState.intent = None
+        return jsonify({"reply": "No hardcode detected"})
+
+# --- Intent route ---
+@mira.route("/intent", methods=["POST"])
+def intent():
+    user_msg = ChatState.user_msg or ""
+    # bypass if hardcode already set intent to chat
+    if ChatState.intent and isinstance(ChatState.intent, dict) and ChatState.intent.get("intent") == "chat":
+        return jsonify({"reply": "Bypass intent"})
+
+    try:
+        raw_intent = ask_intent(user_msg)  # returns JSONL string
+        intents = []
+        commands = []
+
+        for line in raw_intent.strip().splitlines():
+            if not line.strip():
+                continue
+            obj = json.loads(line)
+
+            # If obj is a list, iterate through its items
+            if isinstance(obj, list):
+                for item in obj:
+                    intents.append(item)
+                    intent_type = item.get("intent", "")
+                    command = item.get("command", "")
+                    if intent_type == "action":
+                        if command == "get Weather":
+                            ChatState.weather = ask_weather(user_msg)
+                            print(f"[Intent] Determined weather: {ChatState.weather}")
+                            # mark as bypass so frontend continues into /chat
+                            return jsonify({"reply": "Bypass intent"})
+                        else:
+                            command_lookup(command, user_msg)
+                            commands.append(command)
+                    elif intent_type == "chat":
+                        ChatState.intent = item
+            # If obj is a dict, iterate through its items
+            elif isinstance(obj, dict):
+                intents.append(obj)
+                intent_type = obj.get("intent", "")
+                command = obj.get("command", "")
+                if intent_type == "action":
+                    if command == "get Weather":
+                        ChatState.weather = ask_weather(user_msg)
+                        print(f"[Intent] Determined weather: {ChatState.weather}")
+                        # mark as bypass so frontend continues into /chat
+                        return jsonify({"reply": "Bypass intent"})
+                    else:
+                        command_lookup(command, user_msg)
+                        commands.append(command)
+                elif intent_type == "chat":
+                    ChatState.intent = obj
+
+        # Decide what to return based on intent composition
+        if commands and any(i.get("intent") == "chat" for i in intents if isinstance(i, dict)):
+            # Mixed case: both action and chat
+            chat_intent = next(
+                (i for i in intents if isinstance(i, dict) and i.get("intent") == "chat"),
+                None
+            )
+            if chat_intent:
+                ChatState.intent = chat_intent
+            print(f"[Intent] Determined actions: {commands} and chat")
+            return jsonify({"reply": f"Handled action: {', '.join(commands)}; Chat"})
+
+        elif commands:
+            # only actions
+            ChatState.intent = intents
+            print(f"[Intent] Determined actions: {commands}")
+            return jsonify({"reply": f"Handled action: {', '.join(commands)}"})
+        else:
+            # only chat
+            print("[Intent] Determined chat intent, passing to /chat")
+            return jsonify({"reply": "Bypass intent"})
+
+    except json.JSONDecodeError:
+        return jsonify({"reply": "Invalid intent response: not a valid JSON"})
+    except Exception as e:
+        return jsonify({"reply": f"Error parsing intent: {str(e)}"})
+
+# --- Chat route ---
+@mira.route("/chat", methods=["POST"])
+def chat():
+    # Weather special case
+    if ChatState.weather:
+        response = ChatState.weather
+        ChatState.weather = None  # reset after use
+        return jsonify({"reply": response})
+
+    # Default to the raw user message
+    user_msg = ChatState.user_msg or ""
+    intent = ChatState.intent
+
+    if isinstance(intent, dict) and intent.get("intent") == "chat":
+        # Prefer the matched field if present
+        matched_text = intent.get("matched")
+        if matched_text:
+            user_msg = matched_text
+
         try:
             if HasAttachment.has_attachment():
                 txt_path = BASE_PATH / "temp" / "output.txt"
@@ -251,25 +348,18 @@ def chat():
                 HasAttachment.set_attachment(False)
             else:
                 combined_input = user_msg
+
             assistant_reply = chat_session.ask(combined_input)
+
         except Exception as e:
             print(f"[Chat] Error: {e}")
             assistant_reply = "Error processing message."
+
         return jsonify({"reply": assistant_reply})
 
-    elif intent_name == "action":
-        command = intent.get("command", "")
-        list_items = "Empty"
-        if command == "get Weather":
-            weather = ask_weather(user_msg)
-            return jsonify({"reply": weather})
-        if command in ("new ShoppingList", "append ShoppingList", "new ToDoList", "append ToDoList"):
-            list_items = ask_listify(user_msg)
-        command_lookup(command, list_items)
-        return jsonify({"reply": f"Handled action: {command}"})
-
     else:
-        return jsonify({"reply": "Unknown intent"})
+        # Action intents already handled in /intent
+        return jsonify({"reply": ""})
 
 
 ########################################################################################

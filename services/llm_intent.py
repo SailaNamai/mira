@@ -1,6 +1,7 @@
 # services.llm_intent.py
 
 import re
+import json
 from services.prompts_system import get_system_prompt_intent, SYSTEM_PROMPT_WIKIPEDIA, SYSTEM_PROMPT_LISTIFY, SYSTEM_PROMPT_WEB
 from services.db_access import write_connection
 from services.wikipedia import wikipedia_lucky_search
@@ -18,8 +19,11 @@ def ask_intent(user_msg: str) -> str:
     try:
         print("[Intent] Generating response...")
         response = _llm.create_chat_completion(messages=messages)
-        raw_text = clean_response_text(response["choices"][0]["message"]["content"])
+        print("[Intent] Response:")
+        print(json.dumps(response, indent=2))
+        raw_text = clean_response_text_json(response["choices"][0]["message"]["content"])
         _persist_db(user_msg, raw_text, raw_text)
+        print(f"[Intent] Returning: {raw_text}")
         return raw_text
     except Exception as e:
         print(f"[Error] {e}")
@@ -35,7 +39,7 @@ def ask_wikipedia(user_msg: str) -> str:
     try:
         print("[Wikipedia] Generating response...")
         response = _llm.create_chat_completion(messages=messages)
-        raw_text = clean_response_text(response["choices"][0]["message"]["content"])
+        raw_text = clean_response_text_plain(response["choices"][0]["message"]["content"])
         raw_text = raw_text.replace(" ", "_")
         print(f"[Wikipedia] search key: {raw_text}")
         api_return = wikipedia_lucky_search(user_msg, raw_text)
@@ -56,7 +60,7 @@ def ask_web(user_msg: str) -> str:
     try:
         print("[WEB search] Generating response...")
         response = _llm.create_chat_completion(messages=messages)
-        raw_text = clean_response_text(response["choices"][0]["message"]["content"])
+        raw_text = clean_response_text_plain(response["choices"][0]["message"]["content"])
         print(f"[WEB search] search key: {raw_text}")
         search = web_search(raw_text)
         to_text = save_multiple_urls_text(search)
@@ -75,19 +79,42 @@ def ask_listify(user_msg: str) -> str:
     try:
         print("[Listify] Generating response...")
         response = _llm.create_chat_completion(messages=messages)
-        raw_text = clean_response_text(response["choices"][0]["message"]["content"])
+        raw_text = clean_response_text_plain(response["choices"][0]["message"]["content"])
         print(f"[Listify] Result: {raw_text}")
         return raw_text
     except Exception as e:
         print(f"[Error] {e}")
         raise
 
-def clean_response_text(text: str) -> str:
-    # Remove <think>...</think> block
+def clean_response_text_json(text: str) -> str:
+    """Cleaner for intent responses (expects JSON or JSONL)."""
     text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
-    # Remove empty lines
+    stripped = text.strip()
+    try:
+        obj = json.loads(stripped)
+        return json.dumps(obj, ensure_ascii=False)
+    except Exception:
+        lines = [line.strip() for line in stripped.splitlines() if line.strip()]
+        compact_lines = []
+        buffer = []
+        for line in lines:
+            buffer.append(line)
+            if line.endswith("}"):
+                try:
+                    obj = json.loads("\n".join(buffer))
+                    compact_lines.append(json.dumps(obj, ensure_ascii=False))
+                    buffer = []
+                except Exception:
+                    pass
+        return "\n".join(compact_lines)
+
+
+def clean_response_text_plain(text: str) -> str:
+    """Cleaner for wikipedia/web/listify responses (expects plain text)."""
+    text = re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL)
     lines = [line.strip() for line in text.splitlines() if line.strip()]
     return "\n".join(lines)
+
 
 def _persist_db(user_msg, raw_text, truncated_resp):
     """

@@ -140,21 +140,51 @@ chatForm.addEventListener('submit', async e => {
   input.disabled = true;
 
   try {
-    const response = await fetch('/chat', {
+    // Step 1: Hardcode
+    let response = await fetch('/hardcode', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message: userText })
     });
-    const data = await response.json();
-    const reply = data.reply;
+    let data = await response.json();
+    let reply = data.reply;
+
+    // Step 2: Intent (only if not bypass)
+    if (reply !== "Hardcode detected: wikipedia" &&
+        reply !== "Hardcode detected: web search") {
+      response = await fetch('/intent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: userText })
+      });
+      data = await response.json();
+      reply = data.reply;
+
+      if (reply.startsWith("Handled action:")) {
+        playSuccess();
+        addMessage(reply, 'assistant');
+      } else if (reply === "Unknown intent" || reply.startsWith("Invalid intent")) {
+        playFailure();
+        addMessage(reply, 'assistant');
+      } else if (reply !== "Bypass intent") {
+        addMessage(reply, 'assistant');
+      }
+    }
+
+    // Step 3: Chat
+    response = await fetch('/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: userText })
+    });
+    data = await response.json();
+    reply = data.reply;
 
     addMessage(reply, 'assistant');
 
-    if (reply.startsWith("Handled action:")) {
-      playSuccess();
-    } else if (reply === "Unknown intent" || reply.startsWith("Invalid intent")) {
-      playFailure();
-    } else {
+    if (!reply.startsWith("Handled action:") &&
+        reply !== "Unknown intent" &&
+        !reply.startsWith("Invalid intent")) {
       try {
         await streamVoice(reply);
       } catch (err) {
@@ -171,6 +201,7 @@ chatForm.addEventListener('submit', async e => {
   }
 });
 
+
 // Helper to add a message bubble
 function addMessage(text, role) {
   const container = document.getElementById('messages');
@@ -181,6 +212,7 @@ function addMessage(text, role) {
   container.scrollTop = container.scrollHeight;
 }
 
+// Stream voice and the wait file helper
 async function streamVoice(text) {
   const countResponse = await fetch('/voice_chunks', {
     method: 'POST',

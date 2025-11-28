@@ -10,7 +10,13 @@ A fully local, voice-first home assistant powered by LLMs: No cloud. No tracking
 
 [video_demo.mp4](static/readme/video_demo.mp4)
 
+**True multi-intent** resolution per query:
+- (added after making the video, sorry)
+
+<img src="static/readme/multi_intent_2.jpg" alt="multi_intent_2" style="max-width:400px;">
+
 It is **very** alpha and currently only suited to DIY enthusiasts.
+- Changelog: [CHANGELOG.md](CHANGELOG.md)
 - I apologize in advance to anyone going insane trying to install.
 - Check [install.md](INSTALL.md) for a rough guide (I'll help if asked).
 
@@ -135,11 +141,11 @@ llama_perf_context_print:    graphs reused =        184
 
 ### Determine Intent
 - Pretty solid, needs some prompt engineering, possibly better naming schemes for the commands and some tightening of the voice-in error correction.
-- Currently, it does a single command per query (debug behaviour).
-  - **Long Term**: Wrap the chat+intent route in a for every command loop. 
-      - Solution: Make the intent LLM capable of emitting multiple commands and adapt the chat route.
-        - Needs an additional flask route, a refactor of the chat+intent route and a back and forth between front- and backend.
-      - Problem: Harder to debug individual modules, therefore currently inconvenient.
+- ~~Currently, it does a single command per query (debug behaviour).~~
+  - ~~**Long Term**: Wrap the chat+intent route in a for every command loop.~~
+Implemented multi intent capability per query (currently testing).
+  
+<img src="static/readme/multi_intent.jpg" alt="multi_intent" style="max-width:400px;">
 
 ### CallFunction
 
