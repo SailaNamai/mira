@@ -25,8 +25,9 @@ from collections import Counter
 ########################################################################################
 """############################    Services imports    ##############################"""
 ########################################################################################
-# global vars
-from services.globals import HasAttachment, BASE_PATH, ALLOWED_KEYS, SECRET_KEY, get_local_ip
+# System config
+from services.globals import HasAttachment, BASE_PATH, ALLOWED_KEYS, SECRET_KEY, get_local_ip, ChatContext, ChatState
+from services.mkcert import check_mkcert
 # DB
 from services.db_access import init_db
 from services.db_persist import save_settings, save_nutrition_user_values, persist_nutri_item_values, update_package_item_count
@@ -52,7 +53,7 @@ from services.barcode import lookup_barcode
 """###########################         Setup           ##############################"""
 ########################################################################################
 mira = Flask(__name__, static_folder="static", template_folder="templates")
-chat_session = ChatSession()
+ChatContext.chat_session = ChatSession()
 socketio = SocketIO(mira)
 CORS(mira, resources={
     r"/upload_audio": {"origins": "*"},
@@ -198,15 +199,9 @@ def save_todo_list():
 # starts new chat session
 @mira.route("/new_chat", methods=["POST"])
 def new_chat():
-    global chat_session
-    chat_session = ChatSession()
+    ChatContext.chat_session = ChatSession()
     HasAttachment.set_attachment(False)
     return jsonify({"status": "new session started"})
-
-class ChatState:
-    intent = None
-    user_msg = None
-    weather = None
 
 # --- Hardcode route ---
 @mira.route("/hardcode", methods=["POST"])
@@ -349,7 +344,7 @@ def chat():
             else:
                 combined_input = user_msg
 
-            assistant_reply = chat_session.ask(combined_input)
+            assistant_reply = ChatContext.chat_session.ask(combined_input)
 
         except Exception as e:
             print(f"[Chat] Error: {e}")
@@ -574,6 +569,7 @@ def set_qt_identity():
 if __name__ == '__main__':
     # Start Flask in a background thread
     # HTTPS server
+    check_mkcert()
     flask_thread = threading.Thread(target=run_flask, daemon=True)
     flask_thread.start()
     # HTTP server

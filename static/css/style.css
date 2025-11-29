@@ -120,12 +120,18 @@ html, body {
     border: none;
     background: #4a90e2;
     color: #fff;
-    padding: 0 16px;
+    padding: 23px;
+    font-size: 1rem;
     cursor: pointer;
 }
 
 .chat-input button:hover {
     background: #357abd;
+}
+
+.green-active {
+  background-color: green !important;
+  color: white;
 }
 
 /* Prevent default mobile viewport scaling */
@@ -148,3 +154,4 @@ html, body {
   box-shadow: 0 4px 6px rgba(0,0,0,0.1);
   transition: background-color 0.3s ease;
 }
+

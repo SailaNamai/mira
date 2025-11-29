@@ -57,9 +57,11 @@ def get_system_prompt_intent():
     - Matched is the corresponding segment of the user message.
     - If there is no match in **possible commands**: Intent is always chat.
     - If the intent is chat: The command is always: Pass to Mira.
-    - If the user message is not fully resolved through commands: Add an intent is chat json."""
+    - If the user message is not fully matched through commands: Add an intent is chat json."""
 
     possible_commands = """\t- The **possible commands** are:
+        - new chat
+        - new conversation
         - play music
         - next song
         - previous song
@@ -67,10 +69,8 @@ def get_system_prompt_intent():
         - Open chromium
         - Close chromium
         - remove attachment
-        - new ShoppingList
-        - append ShoppingList
-        - new ToDoList
-        - append ToDoList
+        - new ShoppingList or append ShoppingList
+        - new ToDoList or append ToDoList
         - get Weather
 
         - open firefox

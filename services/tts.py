@@ -239,14 +239,14 @@ def year_to_words(year: int) -> str:
     and preferred by TTS systems like XTTS-v2, Piper, etc.
 
     Examples:
-        1999 → "nineteen ninety-nine"
+        1999 → "nineteen ninety nine"
         2009 → "two thousand and nine"  or "twenty oh nine" (both common, we prefer the clearer one)
         1905 → "nineteen oh five"
         2000 → "two thousand"
-        2024 → "twenty twenty-four"
-        1876 → "eighteen seventy-six"
-        3048 → "three thousand and forty-eight"
-        987  → "nine hundred and eighty-seven"
+        2024 → "twenty twenty four"
+        1876 → "eighteen seventy six"
+        3048 → "three thousand and forty eight"
+        987  → "nine hundred and eighty seven"
     """
     if year < 0:
         return str(year)
@@ -325,7 +325,9 @@ def _small(n: int) -> str:
         if one == 0:
             return _tens[ten]
         else:
-            return f"{_tens[ten]}-{one}"
+            # Use space instead of hyphen
+            return f"{_tens[ten]} { _small_numbers[one] }"
+
 
 def split_into_chunks(text, max_chars=200):
     # Split by sentence boundaries

@@ -29,7 +29,7 @@ _llm = Llama(
     chat_format="chatml", #jinja for qwen3 VL
 )
 
-"""_llm = Llama(
+"""_llm_vl = Llama(
     model_path=str(Config.MODEL_PATH_VL),  # Qwen3-VL GGUF path
     chat_handler=Qwen3VLChatHandler(
         clip_model_path="/home/sailanamai/mira/mmproj-F16.gguf",
@@ -60,6 +60,7 @@ def ask_weather(user_msg: str) -> str:
             messages=messages
         )
         raw_text = response["choices"][0]["message"]["content"]
+        # Clean the response
         clean_text = re.sub(r"<think>.*?</think>", "", raw_text, flags=re.DOTALL).strip()
         clean_text = (clean_text
                       .replace("°C", " degree celsius")
@@ -79,34 +80,73 @@ class ChatSession:
         self.llm = _llm
         self.history = [{"role": "system", "content": system_prompt}]
 
+    def trim_history(self):
+        """
+        Ensure history fits within N_CTX by keeping system prompt + newest messages.
+        """
+        system_prompt = self.history[0]
+        messages = self.history[1:]
+
+        # Token budget: leave room for system prompt
+        max_tokens = Config.N_CTX - count_tokens(system_prompt["content"])
+
+        trimmed = []
+        total_tokens = 0
+        # iterate backwards (newest first)
+        for msg in reversed(messages):
+            msg_tokens = count_tokens(msg["content"])
+            if total_tokens + msg_tokens <= max_tokens:
+                trimmed.insert(0, msg)  # prepend to maintain order
+                total_tokens += msg_tokens
+            else:
+                break
+
+        self.history = [system_prompt] + trimmed
+
     def ask(self, user_msg: str) -> str:
         print(f"[User] {user_msg}")
+
         time = datetime.now().strftime("%d.%m.%Y, Time: %H:%M")
         weekday = datetime.now().strftime("%A")
         timestamp = weekday + ", " + time
+
         try:
             tag = "/think" if user_msg.strip().endswith("/think") else "/no think"
+            print(f"[Mira] Using {tag}")
+
             self.history.append({"role": "user", "content": timestamp + "\n" + user_msg + "\n" + tag})
+
+            # Trim before sending to model
+            self.trim_history()
+
             print("[Mira] Generating response...")
             response = self.llm.create_chat_completion(messages=self.history)
             reply = response["choices"][0]["message"]["content"]
             self.history.append({"role": "assistant", "content": reply})
             print(f"[Mira] {reply}")
-            # log to file
+
+            # log trimmed history (what model saw)
             with open(log_chat, "w", encoding="utf-8") as f:
                 json.dump(self.history, f, ensure_ascii=False, indent=2)
+
             # Extract <think>...</think> block if present
             think_match = re.search(r"<think>(.*?)</think>", reply, re.DOTALL)
             think = think_match.group(1).strip() if think_match else None
+            if think: print(f"[Mira] Reasoning:\n{think}")
+
             # Remove the <think> block from the reply to get the pure response
             reply_pure = re.sub(r"<think>.*?</think>", "", reply, flags=re.DOTALL).strip()
-            _persist_db(self, user_msg, reply_pure, think)
+
+            # Persist full exchange (not trimmed) to DB
+            chat_persist_db(self, user_msg, reply_pure, think)
             return reply_pure
+
         except Exception as e:
-            print(f"[Error] {e}")
+            print(f"[Mira] Error: {e}")
             raise
 
-def _persist_db(self, user_msg, reply, think):
+
+def chat_persist_db(self, user_msg, reply, think):
     """
     Persist chat exchanges into intent_chat table.
 
@@ -119,7 +159,7 @@ def _persist_db(self, user_msg, reply, think):
         # Determine conv_id: use id(self) as a lightweight unique session identifier
         conv_id = id(self)
 
-        # Compute token cost (count_tokens expected to accept a single string)
+        # Compute token cost
         try: token_cost = count_tokens(user_msg + reply)
         except Exception: token_cost = 0
 

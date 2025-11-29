@@ -20,7 +20,7 @@ submitButton.addEventListener('mouseup', async e => {
   await stopRecording();
 });
 
-// Mobile: start recording
+// Mobile: get microphone permission
 async function requestMicPermission() {
   try {
     const permissionStatus = await navigator.permissions.query({ name: 'microphone' });
@@ -38,12 +38,19 @@ async function requestMicPermission() {
   }
 }
 
-// Modify event listeners
+// Mobile: start recording
 submitButton.addEventListener('touchstart', async e => {
   const hasPermission = await requestMicPermission();
   if (hasPermission) {
     touchTriggered = true;
     await startRecording();
+
+    // Visual feedback after 200ms
+    setTimeout(() => {
+      if (isRecording && touchTriggered) {
+        submitButton.classList.add('green-active');
+      }
+    }, 200);
   } else {
     alert("Microphone permission is required");
   }
@@ -51,8 +58,14 @@ submitButton.addEventListener('touchstart', async e => {
 
 // Mobile: stop recording
 submitButton.addEventListener('touchend', async e => {
-  await stopRecording();
-  touchTriggered = false;
+  // Remove visual feedback immediately
+  submitButton.classList.remove('green-active');
+
+  // Delay stopRecording by 200ms to keep recording alive
+  setTimeout(async () => {
+    await stopRecording();
+    touchTriggered = false;
+  }, 200);
 });
 
 async function startRecording() {

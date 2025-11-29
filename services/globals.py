@@ -13,6 +13,14 @@ PLAYLIST_FILENAMES = {}  # Dict of stem → filename
 PLUGS = {}
 PASSKEYS_PATH = BASE_PATH / "services" / "passkeys.py"
 
+class ChatContext:
+    chat_session = None
+
+class ChatState:
+    intent = None
+    user_msg = None
+    weather = None
+
 # Query for keys on first init
 try:
     from .passkeys import ALLOWED_KEYS, SECRET_KEY

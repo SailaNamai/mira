@@ -1,5 +1,6 @@
 I'm doing this on a rtx4080 super with 
 ```
+Ubuntu 24 LTS
 Driver Version: 580.105.08
 CUDA Version: 13.0
 ```  
@@ -24,7 +25,7 @@ Check success with
 
 ### Downloads:
 
-**Vosk**, **Xtts-v2**, **LLM**: 
+**Vosk**, **XTTS-v2**, **LLM**: 
 
 Choose vosk-model-en-us-0.42-gigaspeech and extract to ```.../mira/static/vosk-model-en-us-0.42-gigaspeech.```
 
@@ -34,8 +35,12 @@ Place XTTS-v2 in ```.../mira/static/xtts-v2.```
 
 ```https://huggingface.co/coqui/XTTS-v2```
 
-Any **non vl** qwen3 model should work. I use unsloth 8b at Q6k (use gguf). Place at ```.../mira/```
-Adjust this line 
+Any **non vl** Qwen3 model should work. I use Unsloth 8b at Q6K (use gguf).
+Smaller than 8b might not do well with intent recognition.
+
+Place at ```.../mira/```
+
+Adjust this line: 
 
 ```MODEL_PATH = BASE_PATH / "Qwen3-8B-UD-Q6_K_XL.gguf"``` in ```.../mira/services/llm_config.py```
 
@@ -88,19 +93,6 @@ After entering the passkeys (at first startup) you can access:
   - https://Your.IP:5001/login?token=ONE_OF_YOUR_ALLOWED_KEYS or 
   - with Cloudflare tunnel: https://yourdomain.org/login?token=ONE_OF_YOUR_ALLOWED_KEYS or
   - http://Your.IP:5002/login?token=ONE_OF_YOUR_ALLOWED_KEYS
-
-For https with self-signed local cert:
-```
-sudo apt install mkcert
-sudo apt install libnss3-tools
-mkcert -install
-mkcert 192.168.{IP}.{IP}
-```
-Then from .../mira
-```
-mv 192.168.{IP}.{IP}.pem mira_cert.pem
-mv 192.168.{IP}.{IP}-key.pem mira_key.pem
-```
 
 You can create a .desktop file for the QT window but **DO NOT** start Mira's system with it.
 - Always use a terminal to start Mira.

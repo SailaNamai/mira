@@ -83,19 +83,30 @@ Why Vosk when better models exist? Short answer: Hardware.
     - ~~Starting a query with "please" will jolt it to attention with the P and familiar word and reduce error rate.~~
     - Having no accent/being a native speaker helps.
     - Not having a cold helps.
-    - Pressing the voice button a short while before speaking and holding it a little afterward helps. 
+    - ~~Pressing the voice button a short while before speaking and holding it a little afterward helps.~~ 
   - Solution (implemented, testing): Have the user record a wake word (please). Prepend to every voice query. 
     - Until frontend implementation: Drop your own "please" into ...mira/static/sounds/please.wav
-  - Solution (not implemented): Make the button give visual feedback .2 seconds after being pressed and let it record .2 seconds longer.
+  - Solution (implemented, testing): Make the button give visual feedback .2 seconds after being pressed and let it record .2 seconds longer.
 
 <table>
   <tr>
-    <td><img src="static/readme/vosk_mismatch.jpg" alt="Vosk_demo" width="400"></td>
-    <td>First, third and fourth query are correct.<br>Second query input was equal to third.<br>Vosk deviated too far for the LLM intent interpreter.
+    <td><img src="static/readme/vosk_mismatch.jpg" width="400"></td>
+    <td><img src="static/readme/vosk_mismatch_2.jpg" width="400"></td>
+  </tr>
+  <tr>
+    <td>
+      First, third and fourth query are correct.<br>
+      Second query input was equal to third.<br>
+      Vosk deviated too far for the LLM intent interpreter.
+    </td>
+    <td>
+      Query was: Turn the bathroom on and play the hammer selection.<br>
+      (HammerSelection is HammerFall best of)
+    </td>
   </tr>
 </table>
 
-- **Long Term Solution**: Use Nvidia canary which is apparently 4x as accurate; Problem: 5GB model and can't run on cpu with reasonable speed. Faster whisper is smaller but still must be held in VRAM at all times for response time. FW is also not CUDA13 updated.
+**Long Term Solution**: Use Nvidia canary which is apparently 4x as accurate; Problem: 5GB model and can't run on cpu with reasonable speed. Faster whisper is smaller but still must be held in VRAM at all times for response time. FW is also not CUDA13 updated.
   - Canary is probably required for proper "real world" application with low error rates.
 
 ### IsDetermined
@@ -143,6 +154,7 @@ llama_perf_context_print:    graphs reused =        184
 - Pretty solid, needs some prompt engineering, possibly better naming schemes for the commands and some tightening of the voice-in error correction.
 - ~~Currently, it does a single command per query (debug behaviour).~~
   - ~~**Long Term**: Wrap the chat+intent route in a for every command loop.~~
+
 Implemented multi intent capability per query (currently testing).
   
 <img src="static/readme/multi_intent.jpg" alt="multi_intent" style="max-width:400px;">
@@ -213,6 +225,7 @@ Currently using xtts-v2.
   <a href="static/readme/output_demo.wav">Download demo</a>
 </audio>
 
+
 - Results are good. Text needs some preprocessing (ongoing tweak) before given to the model.
 - Newer and better models for inference are available, but they need stronger hardware.
   - Xtts-v2 struggles somewhat with punctuation, code, numbers, etc. but does well on "normal" text.
@@ -233,25 +246,31 @@ Clicking a link will pass the link_url, empty space on the page will pass the pa
     - Both extensions need to eventually be verified and available through proper channels.
 
 ### Roadmap:
-- Have it accessible from any client in the local network and from my smartphone through the web (done)
-  - Creates additional Qt6 window on localhost
-  - Setting the web API requires much DIY (cloudflare tunnel, buy domain, file edits)
-  - Serving to home network with https requires to create a ssl cert with mkcert, otherwise much access to the phone (camera, mic) is restricted.
-    - Solution: check cert health: auto generate if close to expiry or not present; Problem fails without mkcert installed
-- Give control of Tasmota smart plugs (done, can be entered with name+ip in front end)
-  - Commands dynamically generated: on Name; off Name
-- Give control of heating units (TO-DO: seems to need integration with home assistant)
-- Have it read files (done for many common formats, but not pictures)
-  - Images need qwen vl: We currently constantly hold vosk@cpu, assistant(7,5GB)@gpu, text to speech (2,1GB)@gpu
-    - Let's assume 2GB VRAM for OS: 2+2,1+7,5=11,6GB: leaves ~4GB VRAM for context
-    - Problem: compiled llama-cpp-python to work with qwen3 vl (8b), but it's borderline unusable as a chatbot
-    - Problem: tested someone else's llama-cpp-python for qwen3 vl, but it's still unusable as a chatbot
-      - Solution: Hold both models in VRAM; Problem: User needs at least 24gb VRAM, I don't have enough VRAM to test
-      - Solution: Unload the text model and load the vl model, do inference, reload the text model; Problem: incredible latency increase; likely unfeasible
-- Have it control music (done, can dynamically play any playlist that clementine can process). Drop playlist into ...mira/playlists)
-  - I still buy music, preferably directly from the artist: Probably no spotify support from me.
+### Have it accessible from any client in the local network and from my smartphone through the web (done)
+- Creates additional Qt6 window on localhost
+- Setting the web API requires much DIY (cloudflare tunnel, buy domain, file edits)
+- Serving to home network with https requires to create a ssl cert with mkcert, otherwise much access to the phone (camera, mic) is restricted.
+  - ~~Solution: check cert health: auto generate if close to expiry or not present; Problem fails without mkcert installed~~
+  - Implemented automatic certificate generation and refresh
+
+### Give control of Tasmota smart plugs (done, can be entered with name+ip in front end)
+- Commands dynamically generated: on Name; off Name
+
+### Give control of heating units (TO-DO: seems to need integration with home assistant)
+
+### Have it read files (done for many common formats, but not pictures)
+- Images need qwen vl: We currently constantly hold vosk@cpu, assistant(7,5GB)@gpu, text to speech (2,1GB)@gpu
+  - Let's assume 2GB VRAM for OS: 2+2,1+7,5=11,6GB: leaves ~4GB VRAM for context
+  - Problem: compiled llama-cpp-python to work with qwen3 vl (8b), but it's borderline unusable as a chatbot
+  - Problem: tested someone else's llama-cpp-python for qwen3 vl, but it's still unusable as a chatbot
+    - Solution: Hold both models in VRAM; Problem: User needs at least 24gb VRAM, I don't have enough VRAM to test
+    - Solution: Unload the text model and load the vl model, do inference, reload the text model; Problem: incredible latency increase; likely unfeasible
 - Come up with a way to have it read images (ongoing)
-- Use for shopping and to-do list (done)
+
+### Have it control music (done, can dynamically play any playlist that clementine can process). Drop playlist into ...mira/playlists)
+  - I still buy music, preferably directly from the artist: Probably no spotify support from me.
+
+### Use for shopping and to-do list (done)
   - Accepts new shopping/to do list + items and append shopping/to do list + items
   - Delete items from front end (tap) or by starting new list
 
@@ -264,8 +283,10 @@ Clicking a link will pass the link_url, empty space on the page will pass the pa
 
 ### Make chat sessions client unique and allow multiple users (not implemented)
 
-### Make chat context a rolling window (not implemented)
-- Currently fails on max context (start new conversation with + button)
+### Make chat context a rolling window
+- ~~Currently fails on max context (start new conversation with + button)~~
+- (implemented, testing) 
+  - Still needs a guard against single query that exceeds context
 
 ### Understand time and user schedule (done, sort of, needs some more tweaking and calendar access)
 - It references fun because sunday is defined as free time in my schedule. 
@@ -304,23 +325,22 @@ The idea is to create a database of
 
 Then query the llm for improvements, have it suggest substitute products, suggest a meal, encourage, whatever.
 
-**What does work?**
-- The **barcode scanner** (sort of)
-  - I've tried a lot of these, and they are all finicky one way or another.
-  - Solution1: Use qwen vl; Problem: Hardware
-    - Must keep js scanner as optional (improve or use different scanner)
-  - Solution2: Possibly send a stream of pictures to the backend and do the calcs on proper hardware myself with python.
-  
-
-- Getting the **product info** from world.openfoodfacts.org (sort of)
-  - Problem: Their DB does neither return normalized, nor correct (sample products=8, fully wrong entries=3) results
-    - Same field: 38,5g (14 x 2,75g), 1l, 125 g, 140g, 1pcs
-  - Solution: Refactor everything to use that DB only as suggestion, aggressively attempt to normalize it, have user correct entries
-    - eventually builds local trusted DB
-      - needs to be updatable, but refuse an overwrite from openfoodfacts
-  - Solution: Use qwen vl, have the user take (up to three?) photos; Problem: Hardware
-    - Must keep manual input (vl mode must be optional) in any case
-
+    **What does work?**
+    - The **barcode scanner** (sort of)
+      - I've tried a lot of these, and they are all finicky one way or another.
+      - Solution1: Use qwen vl; Problem: Hardware
+        - Must keep js scanner as optional (improve or use different scanner)
+      - Solution2: Possibly send a stream of pictures to the backend and do the calcs on proper hardware myself with python.
+      
+    
+    - Getting the **product info** from world.openfoodfacts.org (sort of)
+      - Problem: Their DB does neither return normalized, nor correct (sample products=8, fully wrong entries=3) results
+        - Same field: 38,5g (14 x 2,75g), 1l, 125 g, 140g, 1pcs
+      - Solution: Refactor everything to use that DB only as suggestion, aggressively attempt to normalize it, have user correct entries
+        - eventually builds local trusted DB
+          - needs to be updatable, but refuse an overwrite from openfoodfacts
+      - Solution: Use qwen vl, have the user take (up to three?) photos; Problem: Hardware
+        - Must keep manual input (vl mode must be optional) in any case
 
 - Wasn't really able to test the front end beyond scanning
 
