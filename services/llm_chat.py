@@ -29,25 +29,6 @@ _llm = Llama(
     chat_format="chatml", #jinja for qwen3 VL
 )
 
-"""_llm_vl = Llama(
-    model_path=str(Config.MODEL_PATH_VL),  # Qwen3-VL GGUF path
-    chat_handler=Qwen3VLChatHandler(
-        clip_model_path="/home/sailanamai/mira/mmproj-F16.gguf",
-        force_reasoning=False,  # Instruct variant
-    ),
-    n_ctx=Config.N_CTX,               # e.g. 1024–10240
-    n_threads=Config.N_THREADS,
-    n_gpu_layers=Config.N_GPU_LAYERS, # e.g. 20–40
-    temperature=0.7,
-    top_p=0.8,
-    top_k=20,
-    repeat_penalty=1.0,
-    presence_penalty=1.5,
-    frequency_penalty=0.0,
-    use_mmap=False,
-    swa_full=True,
-)"""
-
 def ask_weather(user_msg: str) -> str:
     system_prompt = get_system_prompt_weather()
     messages = [

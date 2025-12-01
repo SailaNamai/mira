@@ -1,25 +1,16 @@
 # services.globals.py
 
-"""
-GlobalVars
-"""
 import socket
 from pathlib import Path
+from llama_cpp import Llama
+from llama_cpp.llama_chat_format import Qwen3VLChatHandler
 
+########################################################################################
+"""############################        System          ##############################"""
+########################################################################################
 BASE_PATH = Path(__file__).resolve().parent.parent
-DEBUG = True
-PLAYLIST_STEM = []
-PLAYLIST_FILENAMES = {}  # Dict of stem → filename
-PLUGS = {}
 PASSKEYS_PATH = BASE_PATH / "services" / "passkeys.py"
-
-class ChatContext:
-    chat_session = None
-
-class ChatState:
-    intent = None
-    user_msg = None
-    weather = None
+DEBUG = True
 
 # Query for keys on first init
 try:
@@ -57,16 +48,7 @@ SECRET_KEY = "{SECRET_KEY}"
         print(f"[Authenticate]passkeys.py created at: {PASSKEYS_PATH}")
         print("[Authenticate] Dev? Added to .gitignore?")
 
-# Attachment state handler
-class HasAttachment:
-    _has_attachment = False
-    @classmethod
-    def set_attachment(cls, value: bool):
-        cls._has_attachment = value
-    @classmethod
-    def has_attachment(cls) -> bool:
-        return cls._has_attachment
-
+# Returns host IP
 def get_local_ip():
     """Returns the local IP address of the machine."""
     s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -80,3 +62,80 @@ def get_local_ip():
         s.close()
     return ip
 
+########################################################################################
+"""############################        VL LLM          ##############################"""
+########################################################################################
+llm_vl = None
+MODEL_PATH = BASE_PATH / "Qwen3-VL-8B-Instruct-UD-Q6_K_XL.gguf"
+MMPROJ_PATH = BASE_PATH / "Qwen3-VL-8B-Instruct-mmproj-F16.gguf"
+
+def init_qwen_vl():
+    """
+    Initialize Qwen3-VL model into RAM at Flask startup.
+    """
+    print("[VL] Model initializing...")
+    global llm_vl
+    llm_vl = Llama(
+        model_path=str(MODEL_PATH),
+        chat_handler=Qwen3VLChatHandler(
+            clip_model_path=str(MMPROJ_PATH),
+            force_reasoning=False,  # barcode task is simple, no need to force reasoning
+        ),
+        n_gpu_layers=0,   # offload no layers to GPU
+        n_ctx=2048,        # context size; barcode prompt is short
+        n_threads=16,       # use 16 CPU threads
+        swa_full=True,
+    )
+    print("[VL] Model initialized and warmed up.")
+
+########################################################################################
+"""############################         Chat           ##############################"""
+########################################################################################
+# Rolling context window for chat
+class ChatContext:
+    chat_session = None
+
+class ChatState:
+    intent = None
+    user_msg = None
+    weather = None
+    picture = None
+
+########################################################################################
+"""############################        Files           ##############################"""
+########################################################################################
+# Attachment state handler
+class HasAttachment:
+    _has_attachment = False
+    _is_picture = False
+
+    @classmethod
+    def set_attachment(cls, value: bool):
+        cls._has_attachment = value
+
+    @classmethod
+    def set_picture(cls, value: bool):
+        cls._is_picture = value
+
+    @classmethod
+    def has_attachment(cls) -> bool:
+        return cls._has_attachment
+
+    @classmethod
+    def is_picture(cls) -> bool:
+        return cls._is_picture
+
+    @classmethod
+    def clear(cls):
+        cls._has_attachment = False
+        cls._is_picture = False
+
+########################################################################################
+"""############################        Various         ##############################"""
+########################################################################################
+
+# music
+PLAYLIST_STEM = []
+PLAYLIST_FILENAMES = {}  # Dict of stem → filename
+# Tasmota plugs
+PLUGS = {}

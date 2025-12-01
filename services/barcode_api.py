@@ -1,4 +1,4 @@
-# services.barcode.py
+# services.barcode_api.py
 
 import requests
 import hashlib

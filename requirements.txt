@@ -1,3 +1,4 @@
+pillow
 cryptography
 dateparser
 torchaudio==2.8.0

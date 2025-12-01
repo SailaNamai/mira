@@ -51,13 +51,13 @@ It is **very** alpha and currently only suited to DIY enthusiasts.
     </tr>
     <tr>
       <td style="text-align:center">32GB RAM</td>
-      <td style="text-align:center">32GB RAM</td>
-      <td>Doesn't really matter. Vosk is 4GB and held in RAM.</td>
+      <td style="text-align:center">More</td>
+      <td>Qwen3-VL@8B_QK(~9GB); Vosk (~4GB); + context.</td>
     </tr>
     <tr>
-      <td style="text-align:center">6 core CPU</td>
-      <td style="text-align:center">Faster</td>
-      <td>Not overly important.</td>
+      <td style="text-align:center">8c/16t CPU</td>
+      <td style="text-align:center">Faster+More</td>
+      <td>VL is slow on CPU.</td>
     </tr>
   </tbody>
 </table>
@@ -193,7 +193,9 @@ Answers anything that is not a command
   - Will likely not do very well with non-text/complex/long documents (it's a small model).
   - Outright fail if no text, misses context from pictures and likely also from complex tables.
   - Reads: .doc, .docx, .odt, .rtf, .xls, .xlsx, .ods, .csv, .ppt, .pptx, .odp, .html, .pdf, .txt .py, .js, .ts, .css, .md, .json, .xml, .yaml, .yml, .toml, .sh, .c, .cpp, .java, .rb, .go, .rs
-  
+
+- TODO: Have the VL model read embedded pictures and tables, then merge with the text again.
+
 <table>
   <thead>
     <tr>
@@ -238,12 +240,14 @@ Currently using xtts-v2.
 
 ### Reads browser payload from extension (url, marked section, image gets passed as attachment):
 
-Clicking a link will pass the link_url, empty space on the page will pass the page_url, marking/highlighting text will pass that text, image needs qwen vl(not implemented).
+Clicking a link will pass the link_url, empty space on the page will pass the page_url, marking/highlighting text will pass that text, image needs qwen vl(implemented, testing).
 
 ![chromium_extension.jpg](static/readme/chromium_extension.jpg)
   - Install from ...mira/services/browser/chromium_extension with Chromium's dev mode enabled
+    - Now able to pass images
   - Firefox extension exists and should work but is more annoying to use/install
     - Both extensions need to eventually be verified and available through proper channels.
+    - Firefox extension possibly cant pass pictures properly
 
 ### Roadmap:
 ### Have it accessible from any client in the local network and from my smartphone through the web (done)
@@ -258,14 +262,15 @@ Clicking a link will pass the link_url, empty space on the page will pass the pa
 
 ### Give control of heating units (TO-DO: seems to need integration with home assistant)
 
-### Have it read files (done for many common formats, but not pictures)
-- Images need qwen vl: We currently constantly hold vosk@cpu, assistant(7,5GB)@gpu, text to speech (2,1GB)@gpu
+### Have it read files (done for many common formats, ~~but not pictures~~)
+- ~~Images need qwen vl:~~ We currently constantly hold vosk@cpu, vl@cpu(9GB), assistant(7,5GB)@gpu, text to speech (2,1GB)@gpu
   - Let's assume 2GB VRAM for OS: 2+2,1+7,5=11,6GB: leaves ~4GB VRAM for context
-  - Problem: compiled llama-cpp-python to work with qwen3 vl (8b), but it's borderline unusable as a chatbot
-  - Problem: tested someone else's llama-cpp-python for qwen3 vl, but it's still unusable as a chatbot
-    - Solution: Hold both models in VRAM; Problem: User needs at least 24gb VRAM, I don't have enough VRAM to test
-    - Solution: Unload the text model and load the vl model, do inference, reload the text model; Problem: incredible latency increase; likely unfeasible
-- Come up with a way to have it read images (ongoing)
+  - ~~Problem: compiled llama-cpp-python to work with qwen3 vl (8b), but it's borderline unusable as a chatbot~~
+  - ~~Problem: tested someone else's llama-cpp-python for qwen3 vl, but it's still unusable as a chatbot~~
+    - ~~Solution: Hold both models in VRAM; Problem: User needs at least 24gb VRAM, I don't have enough VRAM to test~~
+    - ~~Solution: Unload the text model and load the vl model, do inference, reload the text model; Problem: incredible latency increase; likely unfeasible~~
+    - Solution (implemented, testing): Load VL model to CPU: Does well on barcode scan (~1.5s) but takes ~30s for a real picture.
+- ~~Come up with a way to have it read images (ongoing)~~
 
 ### Have it control music (done, can dynamically play any playlist that clementine can process). Drop playlist into ...mira/playlists)
   - I still buy music, preferably directly from the artist: Probably no spotify support from me.
@@ -306,13 +311,22 @@ Clicking a link will pass the link_url, empty space on the page will pass the pa
   - Should be able to make it write basic mails.
   - Should be able to summarise new and unread mails.
 
-### Take a picture (WIP - not functional)
-Really requires more hardware than I currently have.
+### Take a picture (done, testing)
+Really requires more hardware than I currently have but works.
 - Camera access from phone and ability to send a picture to flask (done)
-- Find a way for qwen vl addition (ongoing)
+- If you have the hardware (24GB VRAM min) set: ```.../mira/services/globals.py n_gpu_layers=-1```
 
-### Generate a picture (not implemented)
-- Same issue: Needs a vl model.
+![vl_1.png](static/readme/vl_1.png)
+
+- Though on CPU that took ~30 seconds:
+```
+Llama.generate: 57 prefix-match hit, remaining 1 prompt tokens to eval
+llama_perf_context_print:        load time =     122.67 ms
+llama_perf_context_print: prompt eval time =    1457.18 ms /   339 tokens (    4.30 ms per token,   232.64 tokens per second)
+llama_perf_context_print:        eval time =   31321.20 ms /   252 runs   (  124.29 ms per token,     8.05 tokens per second)
+llama_perf_context_print:       total time =   31677.31 ms /   591 tokens
+llama_perf_context_print:    graphs reused =          0
+```
 
 ### Nutrition (WIP - not functional)
 The idea is to create a database of 
@@ -325,22 +339,34 @@ The idea is to create a database of
 
 Then query the llm for improvements, have it suggest substitute products, suggest a meal, encourage, whatever.
 
-    **What does work?**
-    - The **barcode scanner** (sort of)
-      - I've tried a lot of these, and they are all finicky one way or another.
-      - Solution1: Use qwen vl; Problem: Hardware
-        - Must keep js scanner as optional (improve or use different scanner)
-      - Solution2: Possibly send a stream of pictures to the backend and do the calcs on proper hardware myself with python.
-      
-    
-    - Getting the **product info** from world.openfoodfacts.org (sort of)
-      - Problem: Their DB does neither return normalized, nor correct (sample products=8, fully wrong entries=3) results
-        - Same field: 38,5g (14 x 2,75g), 1l, 125 g, 140g, 1pcs
-      - Solution: Refactor everything to use that DB only as suggestion, aggressively attempt to normalize it, have user correct entries
-        - eventually builds local trusted DB
-          - needs to be updatable, but refuse an overwrite from openfoodfacts
-      - Solution: Use qwen vl, have the user take (up to three?) photos; Problem: Hardware
-        - Must keep manual input (vl mode must be optional) in any case
+- ~~The **barcode scanner** (sort of)~~
+  - ~~I've tried a lot of these, and they are all finicky one way or another.~~
+  - ~~Solution1: Use qwen vl; Problem: Hardware~~
+    - ~~Must keep js scanner as optional (improve or use different scanner)~~
+  - ~~Solution2: Possibly send a stream of pictures to the backend and do the calcs on proper hardware myself with python.~~
+
+**Barcode Scanner**:
+- Made Qwen3 VL read barcodes:
+
+![barcode_pic.jpeg](static/readme/barcode_pic.jpeg)
+
+```
+llama_perf_context_print:        load time =     132.12 ms
+llama_perf_context_print: prompt eval time =    1660.66 ms /    81 tokens (   20.50 ms per token,    48.78 tokens per second)
+llama_perf_context_print:        eval time =    1430.54 ms /    12 runs   (  119.21 ms per token,     8.39 tokens per second)
+llama_perf_context_print:       total time =    1566.72 ms /    93 tokens
+llama_perf_context_print:    graphs reused =          0
+[Barcode] Determined as: 544900038715
+```
+
+- Getting the **product info** from world.openfoodfacts.org (sort of)
+  - Problem: Their DB does neither return normalized, nor correct (sample products=8, fully wrong entries=3) results
+    - Same field: 38,5g (14 x 2,75g), 1l, 125 g, 140g, 1pcs
+  - Solution: Refactor everything to use that DB only as suggestion, aggressively attempt to normalize it, have user correct entries
+    - eventually builds local trusted DB
+      - needs to be updatable, but refuse an overwrite from openfoodfacts
+  - Solution: Use qwen vl, have the user take (up to three?) photos; Problem: Hardware
+    - Must keep manual input (vl mode must be optional) in any case
 
 - Wasn't really able to test the front end beyond scanning
 

@@ -22,7 +22,7 @@ LANGUAGE = "en"
 def init_tts():
     global model, gpt_latent, speaker_embedding
 
-    print("🔧 Initializing XTTS...")
+    print("[XTTS] Initializing ...")
     config = XttsConfig()
     config.load_json(os.path.join(MODEL_DIR, "config.json"))
 
@@ -30,9 +30,9 @@ def init_tts():
     model.load_checkpoint(config, checkpoint_dir=MODEL_DIR, eval=True)
     model.to("cuda" if torch.cuda.is_available() else "cpu")
 
-    print("🎙️ Extracting speaker latents...")
+    print("[XTTS] Extracting speaker latents...")
     gpt_latent, speaker_embedding = model.get_conditioning_latents(audio_path=[REFERENCE_WAV])
-    print("✅ XTTS ready.")
+    print("[XTTS] Ready.")
 
 def voice_out(text, timestamp=None, output_dir=BASE_PATH / "static" / "temp"):
     if model is None or gpt_latent is None or speaker_embedding is None:
@@ -48,7 +48,7 @@ def voice_out(text, timestamp=None, output_dir=BASE_PATH / "static" / "temp"):
     paths = []
 
     for i, chunk in enumerate(chunks):
-        print(f"🗣️ Synthesizing chunk {i+1}/{len(chunks)}: \"{chunk}\"")
+        print(f"[XTTS] Synthesizing chunk {i+1}/{len(chunks)}: \"{chunk}\"")
         output = model.inference(
             text=chunk,
             language=LANGUAGE,
@@ -69,6 +69,7 @@ def voice_out(text, timestamp=None, output_dir=BASE_PATH / "static" / "temp"):
         paths.append(f"/static/temp/{filename}")
 
 def normalize_text(text):
+    print("[XTTS] Normalizing text")
     # Replace DD.MM.YYYY or DD-MM-YYYY or DD/MM/YYYY with spoken English format
     def replace_date(match):
         raw = match.group(0)
@@ -353,4 +354,4 @@ def clean_voice_chunks(output_dir=BASE_PATH / "static" / "temp"):
         try:
             f.unlink()
         except Exception as e:
-            print(f"⚠️ Could not delete {f}: {e}")
+            print(f"[XTTS] Could not delete {f}: {e}")

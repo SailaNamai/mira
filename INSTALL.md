@@ -40,11 +40,27 @@ Smaller than 8b might not do well with intent recognition.
 
 Place at ```.../mira/```
 
-Adjust this line: 
+Adjust this line in ```.../mira/services/llm_config.py```: 
 
-```MODEL_PATH = BASE_PATH / "Qwen3-8B-UD-Q6_K_XL.gguf"``` in ```.../mira/services/llm_config.py```
+```MODEL_PATH = BASE_PATH / "Qwen3-8B-UD-Q6_K_XL.gguf"``` 
 
 ```https://huggingface.co/models?search=qwen3```
+
+For Qwen3 VL choose any VL model and download the model(gguf)+mmproj-F16
+
+Place at ```.../mira/```
+
+Adjust these lines in ```.../mira/services/globals.py```: 
+
+```
+MODEL_PATH = BASE_PATH / "Qwen3-VL-8B-Instruct-UD-Q6_K_XL.gguf"
+MMPROJ_PATH = BASE_PATH / "Qwen3-VL-8B-Instruct-mmproj-F16.gguf"
+``` 
+If you have the hardware (24+ GB VRAM) also change (same file):
+
+```n_gpu_layers=0,``` to ```n_gpu_layers=-1,```
+
+For now **must** use the specified llama-cpp-python fork (just below).
 
 ### Python
 
@@ -53,6 +69,8 @@ Adjust this line:
 
 **DO NOT** pip install requirements.txt:
 - llama-cpp-python needs to be built with CUDA
+- llama-cpp-python needs to be this fork: https://github.com/JamePeng/llama-cpp-python
+  - clone at ```mira/llama-cpp-python``` and then from that directory do: ```CMAKE_ARGS="-DLLAMA_CUBLAS=ON" pip install .```
 - torch and torchaudio are CUDA version sensitive
   - Works for me with the specified versions (in requirements.txt) and CUDA13
 - Rest should be fine to just pip install

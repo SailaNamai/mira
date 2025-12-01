@@ -19,7 +19,7 @@ def get_vosk_model():
     if _model is None:
         model_path_str = str(vosk_model_path)
         if not os.path.exists(model_path_str):
-            raise ValueError(f"Vosk model path does not exist: {model_path_str}")
+            raise ValueError(f"[STT] Vosk model path does not exist: {model_path_str}")
         print("[STT] Loading Vosk model into memory...")
         _model = Model(model_path_str)
     return _model
@@ -87,7 +87,7 @@ def transcribe_audio(audio_path, prepend_wake=True, wake_word="please"):
     try:
         wf = wave.open(str(audio_path), "rb")
         if wf.getnchannels() != 1 or wf.getsampwidth() != 2 or wf.getframerate() != sample_rate:
-            raise ValueError("Audio must be 16-bit mono WAV at 16kHz")
+            raise ValueError("[STT] Audio must be 16-bit mono WAV at 16kHz")
 
         rec = KaldiRecognizer(get_vosk_model(), sample_rate)
         rec.SetWords(True)
@@ -143,7 +143,7 @@ def transcribe_audio(audio_path, prepend_wake=True, wake_word="please"):
             trimmed_text = " ".join(seg["word"] for seg in trimmed_segments).strip()
 
         print(f"[STT] Transcription complete. Duration: {duration:.2f}s")
-        print(f"[STT] Original text: '{full_text}' → Trimmed: '{trimmed_text}'")
+        print(f"[STT] Original text: '{full_text}' \n Trimmed: '{trimmed_text}'")
 
         return {
             "text": trimmed_text,

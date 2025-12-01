@@ -73,348 +73,76 @@
     <div class="nutrition-footer">
       <button id="barcode-scanner">Scan Barcode</button>
     </div>
-    <div id="nutrition-scanner-overlay" class="nutrition-scanner-overlay" style="display: none;">
-      <div class="nutrition-scanner-header">
-        <button id="close-scanner">✕</button>
+
+        <div id="nutrition-scanner-overlay" class="nutrition-scanner-overlay" style="display: none;">
+          <div class="nutrition-scanner-header">
+            <!-- Optional top-right close button (kept for redundancy) -->
+            <button id="close-scanner-top" style="background:none;border:none;color:white;font-size:28px;cursor:pointer;">X</button>
+          </div>
+
+          <video id="camera-video" autoplay playsinline style="width:100%;height:100%;object-fit:cover;"></video>
+
+          <!-- Scan guide rectangle -->
+          <div class="scan-box"></div>
+
+          <!-- Status message -->
+          <div id="nutrition-scan-result" class="nutrition-scan-result">Point camera at barcode…</div>
+
+          <!-- Bottom button bar with Take Photo + Close -->
+          <div class="scanner-bottom-bar">
+            <button id="close-scanner-bottom" class="scanner-btn scanner-btn-close">Close</button>
+            <button id="take-photo-btn" class="scanner-btn scanner-btn-primary">Take Photo</button>
+          </div>
+        </div>
+
+    <!-- Result dialog -->
+    <div id="scan-result-dialog" class="scan-result-dialog" style="display:none;">
+      <div class="scan-result-content">
+        <h3>Scan Result</h3>
+        <p id="scan-result-text"></p>
+        <div class="scan-result-buttons">
+          <button id="close-result-dialog">Close</button>
+        </div>
       </div>
-      <div id="scanner-container" class="nutrition-scanner-view">
-        <div class="scan-box"></div>
-      </div>
-      <div id="nutrition-scan-result" class="nutrition-scan-result"></div>
     </div>
   </div>
 </div>
 
 <script>
-  // ─────────────────────────────────────────────────────────────────
-  // Nutrition result dialog
-  // ─────────────────────────────────────────────────────────────────
-  document.addEventListener('DOMContentLoaded', () => {
-    const dialogHtml = `
-      <div id="nutrition-result-dialog" class="nutrition-result-dialog" style="display:none;">
-        <div class="nutrition-result-content">
-          <div class="result-header">
-            <h3 id="result-product-name">Product</h3>
-            <button id="close-result-dialog" class="close-btn">×</button>
-          </div>
-
-          <div class="result-macros">
-              <div class="per-label">per 100g/100ml</div>
-              <div class="macro-header">
-                <div>Kcal</div>
-                <div>Carbs</div>
-                <div>Fat</div>
-                <div>Protein</div>
-              </div>
-              <div class="macro-values">
-                <div id="per100-kcal">-</div>
-                <div id="per100-carbs">-</div>
-                <div id="per100-fat">-</div>
-                <div id="per100-protein">-</div>
-              </div>
-            </div>
-
-          <!-- Option 1: Item-based -->
-            <div id="item-input-section" class="input-section" style="background:#f8fff8; border:1px solid #c8e6c9;">
-              <div class="section-title" style="color:#2e7d32;">How many <span id="item-unit-plural">items</span> now?</div>
-
-              <div style="display:flex; gap:10px; margin:10px 0;">
-                <input type="number" min="0.1" step="0.1" id="input-items-count" placeholder="0"
-                       class="nutri-input primary">
-                <div style="display:flex; flex-direction:column; justify-content:center; white-space:nowrap;">
-                  <span style="font-size:14px; color:#555;">→</span>
-                  <strong><span id="item-grams">0</span>g</strong>
-                </div>
-              </div>
-
-              <div id="package-count-wrapper">
-                <label class="input-label">Total <span id="item-unit-singular">items</span> per package:</label>
-                <input type="number" min="1" id="input-package-total" placeholder="0" class="nutri-input">
-                <div id="package-hint" class="hint-text"></div>
-              </div>
-            </div>
-
-            <!-- Option 2: Direct grams/ml -->
-            <div class="input-section" style="background:#fff8e6; border:1px solid #ffdd57;">
-              <div class="section-title" style="color:#e65100;">Weight or Volume</div>
-              <input type="number" step="1" min="0" id="input-grams" placeholder="0" class="nutri-input primary">
-              <div class="input-hint">grams or ml</div>
-            </div>
-
-          <div class="result-calculated">
-              <div class="title">Will add:</div>
-              <div class="calc-header">
-                <div>Kcal</div>
-                <div>Carbs</div>
-                <div>Fat</div>
-                <div>Protein</div>
-              </div>
-              <div class="calc-values">
-                <div id="calc-kcal">0</div>
-                <div id="calc-carbs">0</div>
-                <div id="calc-fat">0</div>
-                <div id="calc-protein">0</div>
-              </div>
-            </div>
-
-          <div class="result-buttons">
-            <button id="save-consumption">✅ Save</button>
-            <button id="cancel-consumption">Cancel</button>
-          </div>
-        </div>
-      </div>
-    `;
-
-    document.body.insertAdjacentHTML('beforeend', dialogHtml);
-
-    const dialog = document.getElementById('nutrition-result-dialog');
-    const closeBtn = document.getElementById('close-result-dialog');
-    const cancelBtn = document.getElementById('cancel-consumption');
-    const saveBtn = document.getElementById('save-consumption');
-
-    let currentProduct = null;
-
-    const closeDialog = () => {
-      dialog.style.display = 'none';
-      currentProduct = null;
-      document.getElementById('input-items-count').value = '';
-      document.getElementById('input-grams').value = '';
-      document.getElementById('input-package-total').value = '';
-      document.getElementById('item-grams').textContent = '0';
-    };
-    closeBtn.onclick = cancelBtn.onclick = closeDialog;
-
-    const updateCalculation = () => {
-      if (!currentProduct?.nutriments) return;
-      const n = currentProduct.nutriments;
-
-      const itemsInput = document.getElementById('input-items-count');
-      const gramsInput = document.getElementById('input-grams');
-      const packageTotalInput = document.getElementById('input-package-total');
-      const itemGramsSpan = document.getElementById('item-grams');
-
-      let finalGrams = 0;
-
-      // Priority 1: grams input
-      if (gramsInput.value) {
-        finalGrams = parseFloat(gramsInput.value) || 0;
-        itemsInput.value = ''; // clear items to avoid conflict
-        itemGramsSpan.textContent = finalGrams.toFixed(1);
-      }
-      // Priority 2: item count (only if package total is known or entered)
-      else if (itemsInput.value) {
-        const itemsConsumed = parseFloat(itemsInput.value) || 0;
-        const totalItems = parseFloat(packageTotalInput.value) || 0;
-
-        if (totalItems > 0 && currentProduct.product_quantity > 0) {
-          const gramsPerItem = currentProduct.product_quantity / totalItems;
-          finalGrams = gramsPerItem * itemsConsumed;
-          itemGramsSpan.textContent = finalGrams.toFixed(1);
-        } else {
-          itemGramsSpan.textContent = '❓';
-        }
-      } else {
-        itemGramsSpan.textContent = '0';
-      }
-
-      const factor = finalGrams / 100;
-      document.getElementById('calc-kcal').textContent = Math.round((n.energy_kcal_100g || 0) * factor);
-      document.getElementById('calc-carbs').textContent = ((n.carbohydrates_100g || 0) * factor).toFixed(1);
-      document.getElementById('calc-fat').textContent = ((n.fat_100g || 0) * factor).toFixed(1);
-      document.getElementById('calc-protein').textContent = ((n.proteins_100g || 0) * factor).toFixed(1);
-    };
-
-    // Live update on any input
-    ['input-items-count', 'input-grams', 'input-package-total'].forEach(id => {
-      const el = document.getElementById(id);
-      if (el) el.addEventListener('input', updateCalculation);
-    });
-
-    window.showNutritionResultDialog = (product) => {
-      currentProduct = product;
-
-      document.getElementById('result-product-name').textContent = product.product_name || 'Unknown';
-
-      const n = product.nutriments || {};
-      document.getElementById('per100-kcal').textContent = n.energy_kcal_100g || '-';
-      document.getElementById('per100-carbs').textContent = n.carbohydrates_100g || '-';
-      document.getElementById('per100-fat').textContent = n.fat_100g || '-';
-      document.getElementById('per100-protein').textContent = n.proteins_100g || '-';
-
-      // ====== SMART ITEM UNIT & PACKAGE SETUP ======
-      const itemNameSingular = document.getElementById('item-unit-singular');
-      const itemNamePlural = document.getElementById('item-unit-plural');
-      const packageHint = document.getElementById('package-hint');
-      const packageTotalInput = document.getElementById('input-package-total');
-
-      // Determine unit (singular)
-      let unit = 'item';
-      if (product.portion_description) {
-        unit = product.portion_description.trim().toLowerCase();
-      } else if (product.product_name?.toLowerCase().includes('bread')) {
-        unit = 'slice';
-      } else if (product.product_name?.toLowerCase().includes('egg')) {
-        unit = 'egg';
-      } else if (product.product_name?.toLowerCase().includes('yogurt') || product.product_name?.toLowerCase().includes('pot')) {
-        unit = 'pot';
-      }
-      itemNameSingular.textContent = unit;
-      itemNamePlural.textContent = unit + (['s', 'x', 'z'].some(c => unit.endsWith(c)) ? 'es' : unit.endsWith('y') ? 'ies' : 's');
-
-      // Always show package wrapper (better UX)
-      document.getElementById('package-count-wrapper').style.display = 'block';
-
-      // Prefill package total if known, else hint
-      let suggestedTotal = null;
-      if (product.quantity && product.quantity > 0) {
-        suggestedTotal = product.quantity;
-      } else if (product.packaging_text) {
-        const match = product.packaging_text.match(/\b(\d+)\b/);
-        if (match) suggestedTotal = parseInt(match[1]);
-      }
-
-      if (suggestedTotal) {
-        packageTotalInput.value = suggestedTotal;
-        packageHint.textContent = `📦 Detected: "${product.packaging_text || product.quantity}"`;
-        packageHint.style.color = '#2e7d32';
-      } else {
-        packageTotalInput.value = '';
-        packageHint.textContent = '🔍 Tip: Enter your own count.';
-        packageHint.style.color = '#777';
-      }
-
-      updateCalculation();
-      dialog.style.display = 'block';
-    };
-
-    saveBtn.onclick = () => {
-      if (!currentProduct) return;
-
-      const gramsInputEl = document.getElementById('input-grams');
-      const itemsInputEl = document.getElementById('input-items-count');
-      const packageTotalInputEl = document.getElementById('input-package-total');
-
-      const gramsInput = gramsInputEl.value.trim();
-      const itemsInput = itemsInputEl.value.trim();
-      const packageTotalInput = packageTotalInputEl.value.trim();
-
-      let finalGrams = 0;
-
-      if (gramsInput) {
-        // Grams mode
-        finalGrams = parseFloat(gramsInput);
-        if (isNaN(finalGrams) || finalGrams <= 0) {
-          alert("Please enter a valid amount in grams/ml (e.g. 150).");
-          gramsInputEl.focus();
-          return;
-        }
-      } else if (itemsInput) {
-        // Item mode → require package total
-        const items = parseFloat(itemsInput);
-        const totalItems = parseFloat(packageTotalInput);
-
-        if (isNaN(items) || items <= 0) {
-          alert("How many items are you eating? (e.g. 2 slices)");
-          itemsInputEl.focus();
-          return;
-        }
-
-        if (isNaN(totalItems) || totalItems <= 0) {
-          alert("How many total items are in the package? (e.g. 20 slices)");
-          packageTotalInputEl.focus();
-          return;
-        }
-
-        if (!currentProduct.product_quantity || currentProduct.product_quantity <= 0) {
-          alert("⚠️ Cannot convert items to grams: total product weight unknown.\nTry entering grams directly.");
-          return;
-        }
-
-        const gramsPerItem = currentProduct.product_quantity / totalItems;
-        finalGrams = gramsPerItem * items;
-      } else {
-        alert("⚠️ Please enter either:\n• Grams/ml, OR\n• Number of items + total in package");
-        return;
-      }
-
-      if (finalGrams <= 0) {
-        alert("Amount must be greater than zero.");
-        return;
-      }
-
-      // Round to 0.1g precision
-      const roundedGrams = Math.round(finalGrams * 10) / 10;
-
-      const payload = {
-        barcode: currentProduct.barcode,
-        grams: roundedGrams
-      };
-
-      // Only send package_item_count if it’s new or different
-      const knownQty = currentProduct.quantity;
-      const userProvidedTotal = parseFloat(packageTotalInput);
-      if (!isNaN(userProvidedTotal) && userProvidedTotal > 0 && (!knownQty || knownQty !== userProvidedTotal)) {
-        payload.package_item_count = userProvidedTotal;
-      }
-
-      fetch('/nutrition/consume', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      })
-      .then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
-      .then(res => {
-        alert(res.message || "✅ Logged successfully!");
-        closeDialog();
-        location.reload();
-      })
-      .catch(err => {
-        console.error("Save error:", err);
-        alert("❌ Failed to save. Please try again.");
-      });
-    };
-  });
-</script>
-
-<script>
-  // ─────────────────────────────────────────────────────────────────
-  // Barcode scanner - quagga2 - MIT license
-  // ─────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────
+// Modal opening + settings loading + scanner
+// ─────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', function() {
   const nutritionIcon = document.getElementById('nutrition-icon');
   const nutritionModal = document.getElementById('nutrition-modal');
   const scannerOverlay = document.getElementById('nutrition-scanner-overlay');
-  const barcodeButton = document.getElementById('barcode-scanner');
-  const closeScannerButton = document.getElementById('close-scanner');
+  const takePhotoBtn = document.getElementById('take-photo-btn');
   const scanResult = document.getElementById('nutrition-scan-result');
+  const video = document.getElementById('camera-video');
 
-  let scanLocked = false;
-  let scanBuffer = [];
+  // Result dialog elements
+  const resultDialog = document.getElementById('scan-result-dialog');
+  const resultText = document.getElementById('scan-result-text');
+  const closeResultDialogBtn = document.getElementById('close-result-dialog');
 
-  function stopScanner() {
-    Quagga.stop();
-    Quagga.offDetected();
-    scannerOverlay.style.display = 'none';
-    scanLocked = false;
-  }
+  let stream = null;
 
-  nutritionIcon?.addEventListener('click', () => {
-  nutritionModal.style.display = 'block';
+  // Open the main nutrition modal
+  if (nutritionIcon) {
+    nutritionIcon.addEventListener('click', () => {
+      nutritionModal.style.display = 'block';
+
+      // Load current user settings
       fetch('/nutrition/settings')
         .then(res => res.json())
         .then(data => {
           const { kcal_allowed, carbs_allowed, fat_allowed, protein_allowed } = data;
 
-          // Update modal labels
           document.getElementById("kcal-left").textContent = `${kcal_allowed} kcal`;
           document.getElementById("carbs-text").textContent = `0 / ${carbs_allowed}g`;
           document.getElementById("fat-text").textContent = `0 / ${fat_allowed}g`;
           document.getElementById("protein-text").textContent = `0 / ${protein_allowed}g`;
 
-          // Update settings dialog inputs
           document.getElementById("input-kcal").value = kcal_allowed;
           document.getElementById("input-carbs").value = carbs_allowed;
           document.getElementById("input-fat").value = fat_allowed;
@@ -422,115 +150,257 @@ document.addEventListener('DOMContentLoaded', function() {
         })
         .catch(err => console.error("Failed to load nutrition settings:", err));
     });
+  }
 
-  window.addEventListener('click', (event) => {
-    if (event.target === nutritionModal) {
+  // Close modal when clicking background
+  window.addEventListener('click', (e) => {
+    if (e.target === nutritionModal) {
       nutritionModal.style.display = 'none';
-      stopScanner();
+      stopCamera();
     }
   });
 
-  barcodeButton?.addEventListener('click', () => {
-    scannerOverlay.style.display = 'block';
-    scanResult.textContent = 'Initializing scanner…';
-    scanResult.style.color = '';
-    scanResult.style.fontWeight = '';
+  // ———— CAMERA & SCANNER CODE  ————
+  function stopCamera() {
+    if (stream) {
+      stream.getTracks().forEach(t => t.stop());
+      stream = null;
+    }
+    video.srcObject = null;
+    scannerOverlay.style.display = 'none';
+  }
 
-    navigator.mediaDevices.getUserMedia({ video: true })
-      .then(() => {
-        if (typeof Quagga === 'undefined') {
-          scanResult.textContent = 'Quagga2 not loaded.';
-          scanResult.style.color = 'red';
-          return;
-        }
+  function startCamera() {
+    scannerOverlay.style.display = 'flex';
+    scanResult.textContent = 'Loading camera…';
 
-        const target = document.getElementById("scanner-container");
-        if (!target || target.offsetParent === null) {
-          scanResult.textContent = 'Scanner container not visible.';
-          scanResult.style.color = 'red';
-          return;
-        }
-
-        Quagga.init({
-          inputStream: {
-            type: "LiveStream",
-            target: target,
-            constraints: {
-              facingMode: "environment"
-            },
-            area: {
-            top: "40%",
-            right: "10%",
-            left: "10%",
-            bottom: "40%"
-          }
-          },
-          decoder: {
-            readers: ["ean_reader"]
-          },
-          locate: true
-        }, function(err) {
-          if (err) {
-            console.error("Quagga init error:", err);
-            scanResult.textContent = `Scanner failed: ${err.message || err}`;
-            scanResult.style.color = 'red';
-            return;
-          }
-
-          Quagga.start();
-          scanResult.textContent = "Scanning…";
-
-          Quagga.onDetected((data) => {
-              const code = data.codeResult.code;
-
-              // Only accept numeric codes of expected length
-              if (!code || typeof code !== 'string' || code.length < 6) return;
-
-              scanBuffer.push(code);
-
-              scanResult.textContent = `Scanned ${scanBuffer.length}/10…`;
-              scanResult.style.color = 'orange';
-              scanResult.style.fontWeight = 'bold';
-
-              if (scanBuffer.length >= 10) {
-                Quagga.offDetected(); // stop further detection
-
-                fetch('/barcode', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ barcodes: scanBuffer })
-                })
-                .then(response => response.json())
-                .then(product => {
-                  // Hide scanner immediately
-                  stopScanner();
-                  scanBuffer = [];
-
-                  // New dialog
-                  if (typeof showNutritionResultDialog === 'function') {
-                    showNutritionResultDialog(product);
-                  } else {
-                    console.error("showNutritionResultDialog not available");
-                  }
-                })
-                .catch(err => {
-                  scanResult.textContent = `❌ Server error: ${err.message}`;
-                  scanResult.style.color = 'red';
-                  scanBuffer = [];
-                });
-              }
-            });
-        });
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
+      .then(s => {
+        stream = s;
+        video.srcObject = stream;
+        scanResult.textContent = 'Point at barcode and tap "Take Photo"';
       })
-      .catch((err) => {
-        scanResult.textContent = `Camera access denied: ${err.message || err}`;
+      .catch(err => {
+        scanResult.textContent = 'Camera access denied';
         scanResult.style.color = 'red';
       });
+  }
+
+  document.getElementById('barcode-scanner')?.addEventListener('click', startCamera);
+  document.getElementById('close-scanner-bottom')?.addEventListener('click', stopCamera);
+  document.getElementById('close-scanner-top')?.addEventListener('click', stopCamera);
+
+  takePhotoBtn.addEventListener('click', () => {
+    if (!video.videoWidth || !stream?.active) return;
+
+    takePhotoBtn.disabled = true;
+
+    // Show result dialog immediately with waiting message
+    resultText.textContent = '⏳ Waiting for response…';
+    resultDialog.style.display = 'flex';
+
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d');
+
+    const videoW = video.videoWidth;
+    const videoH = video.videoHeight;
+    const displayWidth = video.clientWidth;
+    const displayHeight = video.clientHeight;
+
+    const cropWidthPx = 250;
+    const cropHeightPx = 125;
+
+    const scaleX = videoW / displayWidth;
+    const scaleY = videoH / displayHeight;
+
+    const cropX = (displayWidth - cropWidthPx) / 2 * scaleX;
+    const cropY = (displayHeight - cropHeightPx) / 2 * scaleY;
+    const cropW = cropWidthPx * scaleX;
+    const cropH = cropHeightPx * scaleY;
+
+    canvas.width = cropWidthPx;
+    canvas.height = cropHeightPx;
+
+    // ✅ Draw frame first while stream is active
+    ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, cropWidthPx, cropHeightPx);
+
+    // Now stop the camera
+    stopCamera();
+
+    canvas.toBlob(blob => {
+      const fd = new FormData();
+      fd.append('file', blob, 'barcode.jpg');
+
+      fetch('/nutrition/scan/', {
+        method: 'POST',
+        body: fd
+      })
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+      .then(data => {
+        if (!data.code) throw new Error(data.error || 'No barcode detected');
+        resultText.textContent = `✅ Scanned barcode: ${data.code}`;
+      })
+      .catch(err => {
+        console.error('Scan failed:', err);
+        resultText.textContent = `❌ ${err.message || 'Scan failed'}`;
+      })
+      .finally(() => {
+        takePhotoBtn.disabled = false;
+      });
+    }, 'image/jpeg', 0.9);
   });
 
-  closeScannerButton?.addEventListener('click', stopScanner);
+  // Close result dialog
+  closeResultDialogBtn?.addEventListener('click', () => {
+    resultDialog.style.display = 'none';
+    stopCamera();
+  });
 });
 </script>
+
+<style>
+/* Result confirmation dialogue */
+.scan-result-dialog {
+  position: fixed;
+  top:0; left:0;
+  width:100%; height:100%;
+  background: rgba(0,0,0,0.6);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index:1000;
+}
+.scan-result-content {
+  background:#fff;
+  padding:20px;
+  border-radius:8px;
+  max-width:300px;
+  text-align:center;
+}
+.scan-result-buttons button {
+  margin-top:10px;
+}
+</style>
+
+<style>
+/* Scanner */
+.nutrition-scanner-overlay {
+  display: none;
+  position: fixed;
+  z-index: 1001;
+  top: 0; left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: black;
+}
+
+#camera-video {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.scan-box {
+  width: 280px;
+  height: 140px;
+  border: 3px dashed lime;
+  border-radius: 12px;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1003;
+  pointer-events: none;
+  box-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
+}
+
+#nutrition-scan-result {
+  position: absolute;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(0,0,0,0.75);
+  color: white;
+  padding: 12px 24px;
+  border-radius: 12px;
+  font-size: 18px;
+  font-weight: 500;
+  z-index: 1002;
+  max-width: 90%;
+  text-align: center;
+  backdrop-filter: blur(4px);
+}
+
+/* Bottom button bar — safe from Android navigation bar */
+.scanner-bottom-bar {
+  position: absolute;
+  bottom: 80px;           /* Much higher than before */
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 20px;
+  z-index: 1004;
+}
+
+.scanner-btn {
+  padding: 16px 32px;
+  font-size: 18px;
+  font-weight: 600;
+  border: none;
+  border-radius: 50px;
+  cursor: pointer;
+  min-width: 140px;
+  transition: all 0.2s;
+}
+
+.scanner-btn-close {
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  backdrop-filter: blur(10px);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+}
+
+.scanner-btn-close:hover,
+.scanner-btn-close:active {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.scanner-btn-primary {
+  background: #28a745;
+  color: white;
+  box-shadow: 0 6px 20px rgba(40, 167, 69, 0.4);
+}
+
+.scanner-btn-primary:active {
+  transform: translateY(2px);
+  box-shadow: 0 4px 12px rgba(40, 167, 69, 0.3);
+}
+
+.scanner-btn-primary:disabled {
+  background: #666;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* Optional top-right close button (kept for muscle memory) */
+#close-scanner-top {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 1005;
+  background: rgba(0,0,0,0.5);
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  font-size: 28px;
+  color: white;
+}
+</style>
 
 <script>
   // ─────────────────────────────────────────────────────────────────
@@ -660,59 +530,7 @@ document.addEventListener("DOMContentLoaded", () => {
   cursor: pointer;
 }
 
-.nutrition-scanner-overlay {
-  display: none;
-  position: fixed;
-  z-index: 1001;
-  top: 0;
-  left: 0;
-  width: 100vw;
-  height: 100vh;
-  background-color: rgba(0,0,0,0.85);
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-}
-
-.nutrition-scanner-header {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  z-index: 1002;
-}
-
-.nutrition-scanner-view {
-  width: 100vw;
-  height: 100vh;
-  position: relative;
-}
-
-.nutrition-scan-result {
-  position: absolute;
-  top: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  color: white;
-  font-size: 18px;
-  background-color: rgba(0,0,0,0.6);
-  padding: 10px 20px;
-  border-radius: 8px;
-  z-index: 1002;
-}
-
-.scan-box {
-  width: 250px;
-  height: 125px;
-  border: 2px dashed lime;
-  position: absolute;
-  top: 25%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 1003;
-  pointer-events: none;
-}
-
+/* Macronutrient circles & grid */
 .nutri-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -741,6 +559,7 @@ document.addEventListener("DOMContentLoaded", () => {
   color: #555;
 }
 
+/* Kcal section */
 .kcal-grid {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
@@ -792,13 +611,14 @@ document.addEventListener("DOMContentLoaded", () => {
   margin-top: 2px;
 }
 
-
+/* Header with settings gear */
 .nutri-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
 }
 
+/* Settings dialog */
 .nutri-settings-dialog {
   position: fixed;
   top: 0;
@@ -853,198 +673,5 @@ document.addEventListener("DOMContentLoaded", () => {
   color: white;
   border-radius: 4px;
   cursor: pointer;
-}
-
-
-.nutrition-result-dialog {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.75);
-  display: flex; align-items: center; justify-content: center;
-  z-index: 10000;
-}
-.nutrition-result-content {
-  background: white;
-  border-radius: 14px;
-  padding: 20px;
-  width: 90%;
-  max-width: 380px;               /* 4. narrower dialog */
-  font-family: system-ui, sans-serif;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
-}
-
-/* 1. Center headline & buttons */
-.result-header {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  position: relative;
-  margin-bottom: 16px;
-}
-.result-header h3 { margin: 0; font-size: 1.4rem; }
-.close-btn {
-  position: absolute;
-  right: 0;
-  background:none; border:none; font-size:28px; cursor:pointer;
-}
-
-/* 2. Compact & centered per-100g block */
-.result-macros {
-  margin: 12px 0;
-  text-align: center;
-}
-.result-macros .per-label {
-  font-size: 13px;
-  color: #666;
-  margin-bottom: 8px;
-}
-.result-macros .macro-header {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 4px;
-  font-size: 12px;
-  font-weight: 600;
-  color: #555;
-  margin-bottom: 4px;
-}
-.result-macros .macro-values {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 4px;
-  font-size: 16px;
-  font-weight: 700;
-}
-.result-macros .macro-values div {
-  /* Optional: subtle visual grouping */
-  padding: 6px 2px;
-}
-
-/* 4. Smaller inputs */
-.result-inputs input {
-  width: 100%;
-  padding: 10px;
-  font-size: 15px;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  box-sizing: border-box;
-}
-.result-inputs label {
-  margin: 14px 0 6px;
-  display: block;
-  font-weight: 500;
-}
-.or-separator {
-  text-align:center;
-  margin:12px 0;
-  color:#777;
-  font-weight:500;
-}
-
-/* 5. “Will add” layout */
-.result-calculated {
-  margin: 16px 0;
-  padding: 14px;
-  background: #f9f9f9;
-  border-radius: 10px;
-  text-align: center;
-}
-.result-calculated .title {
-  font-weight: 600;
-  font-size: 14px;
-  color: #444;
-  margin-bottom: 8px;
-}
-.result-calculated .calc-header {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 4px;
-  font-size: 12px;
-  color: #666;
-  margin-bottom: 4px;
-}
-.result-calculated .calc-values {
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 4px;
-  font-size: 16px;
-  font-weight: 700;
-}
-.result-calculated .calc-values div {
-  padding: 6px 2px;
-}
-
-/* Buttons centered */
-.result-buttons {
-  display: flex;
-  justify-content: center;
-  gap: 12px;
-  margin-top: 20px;
-}
-.result-buttons button {
-  padding: 11px 24px;
-  font-size: 16px;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-}
-.result-buttons button:first-child {
-  background: #28a745;
-  color: white;
-}
-.result-buttons button:last-child {
-  background: #ddd;
-}
-
-
-/* Unified input styling */
-.nutri-input {
-  width: 100%;
-  padding: 10px 12px;
-  font-size: 16px;
-  border-radius: 8px;
-  border: 2px solid #ccc;
-  box-sizing: border-box;
-  text-align: center;
-  font-family: inherit;
-}
-
-.nutri-input:focus {
-  outline: none;
-  border-color: #4caf50;
-}
-
-.nutri-input.primary {
-  font-size: 18px;
-  padding: 12px;
-}
-
-.input-section {
-  margin: 14px 0;
-  padding: 14px;
-  border-radius: 10px;
-}
-
-.section-title {
-  font-weight: 600;
-  font-size: 15px;
-  margin-bottom: 10px;
-}
-
-.input-label {
-  font-size: 13px;
-  color: #1b5e20;
-  display: block;
-  margin: 8px 0 4px;
-}
-
-.input-hint {
-  font-size: 13px;
-  color: #666;
-  text-align: center;
-  margin-top: 6px;
-}
-
-.hint-text {
-  font-size: 12px;
-  color: #555;
-  margin-top: 4px;
 }
 </style>

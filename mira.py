@@ -10,6 +10,9 @@ import json
 import threading
 import webview
 import subprocess
+import io
+import base64
+from PIL import Image
 from PyQt6 import QtGui, QtWidgets
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QColor
@@ -20,34 +23,36 @@ from flask_socketio import SocketIO, emit
 from datetime import datetime
 from threading import Thread
 from pathlib import Path
-from collections import Counter
 
 ########################################################################################
 """############################    Services imports    ##############################"""
 ########################################################################################
 # System config
-from services.globals import HasAttachment, BASE_PATH, ALLOWED_KEYS, SECRET_KEY, get_local_ip, ChatContext, ChatState
+from services.globals import HasAttachment, BASE_PATH, ALLOWED_KEYS, SECRET_KEY, get_local_ip, ChatContext, ChatState, init_qwen_vl
 from services.mkcert import check_mkcert
 # DB
 from services.db_access import init_db
-from services.db_persist import save_settings, save_nutrition_user_values, persist_nutri_item_values, update_package_item_count
+from services.db_persist import save_settings, save_nutrition_user_values, update_package_item_count
 from services.db_get import get_settings, GetDB
-# cast to text
+# Cast to text
 from services.url_to_txt import save_url_text
 from services.file_to_txt import is_supported_file, file_to_txt
 from services.stt import get_vosk_model, transcribe_audio
-# intent
+# Intent
 from services.llm_intent import ask_intent, ask_wikipedia, ask_web
+# VL
+from services.llm_vl import image_inference
 # Chat
 from services.llm_chat import ChatSession, ask_weather
 from services.tts import init_tts, voice_out, split_into_chunks, clean_voice_chunks
-# command
+# Command
 from services.command_library import command_lookup
 #from services.browser.chromium import chromium_print
 from services.music import discover_playlists
 from services.smart_plugs import load_plugs_from_db
-# barcode/nutrition
-from services.barcode import lookup_barcode
+# Barcode/Nutrition
+from services.llm_vl import scan_barcode
+from services.barcode_api import lookup_barcode
 
 ########################################################################################
 """###########################         Setup           ##############################"""
@@ -97,41 +102,98 @@ def persist_settings():
 ########################################################################################
 """#########################  Attachment&BrowserPlugin ##############################"""
 ########################################################################################
+# receiving from picture.js
+@mira.route('/picture', methods=['POST'])
+def picture():
+    picture_path = BASE_PATH / "temp" / "picture.jpeg"
+    file = request.files.get('picture')
+
+    if not file or file.filename == '':
+        return "No picture received", 400
+
+    # Save the picture
+    file.save(picture_path)
+    print(f"[Picture] Saved to {picture_path}")
+
+    # Set global attachment state
+    HasAttachment.set_attachment(True)
+    HasAttachment.set_picture(True)
+
+    # Notify frontend via Socket.IO
+    socketio.emit('attachment_update', {
+        "has_attachment": True,
+        "type": "picture"
+    })
+
+    return "Picture received and ready", 200
+
 # receiving chromium payload
 @mira.route('/receive', methods=['POST'])
 def receive():
-    data = request.get_json()
-    print("Received:", data)
-    payload = data.get("type")
+    data = request.get_json(silent=True) or {}
+    print("[Receive] Payload from extension:", data)
 
-    if payload in ("page", "link"):
-        #chromium_print(data)
-        url = data.get("content")
-        save_url_text(url)
+    payload_type = data.get("type")
+    content = data.get("content", "").strip()
+
+    print(f"[Receive] Type: {payload_type!r} | Content length: {len(content) if content else 0}")
+
+    # IMAGE
+    if payload_type == "image_blob" and content:
+        picture_path = BASE_PATH / "temp" / "picture.jpeg"
+        print(f"[Receive] Received image_blob ({len(content)} base64 chars)")
+
+        try:
+            image_data = base64.b64decode(content)
+
+            if len(image_data) < 100:
+                raise ValueError("Image data too small")
+
+            img = Image.open(io.BytesIO(image_data))
+            if img.mode in ("RGBA", "LA", "P"):
+                img = img.convert("RGB")
+
+            img.save(picture_path, format="JPEG", quality=92)
+
+            print(f"[Receive] Image saved from browser → {picture_path} ({picture_path.stat().st_size} bytes)")
+
+            HasAttachment.set_attachment(True)
+            HasAttachment.set_picture(True)
+
+            socketio.emit('attachment_update', {
+                "has_attachment": True,
+                "type": "picture"
+            })
+            return jsonify({"status": "ok", "attachment": True}), 200
+
+        except Exception as e:
+            print(f"[Receive] Failed to process image_blob: {type(e).__name__}: {e}")
+            return jsonify({"status": "error", "message": "Invalid image data"}), 400
+
+    # PAGE / LINK
+    if payload_type in ("page", "link") and content:
+        print(f"[Receive] Saving {payload_type}: {content}")
+        save_url_text(content)
         HasAttachment.set_attachment(True)
-        # Emit a socket event to notify clients
-        socketio.emit('attachment_update', {
-            "has_attachment": True,
-            "type": payload
-        })
+        socketio.emit('attachment_update', {"has_attachment": True, "type": payload_type})
         return jsonify({"status": "ok", "attachment": True}), 200
 
-    if payload == "selection":
+    # TEXT SELECTION
+    if payload_type == "selection" and content:
         txt_path = BASE_PATH / "temp" / "output.txt"
-        # overwrite
         with open(txt_path, 'w', encoding='utf-8') as f:
-            f.write(data.get('content', ''))
+            f.write(content)
+        print(f"[Receive] Text selection saved ({len(content)} chars) → {txt_path}")
         HasAttachment.set_attachment(True)
-        # Emit a socket event to notify clients
-        socketio.emit('attachment_update', {
-            "has_attachment": True,
-            "type": payload
-        })
+        socketio.emit('attachment_update', {"has_attachment": True, "type": "selection"})
         return jsonify({"status": "ok", "attachment": True}), 200
 
-    return jsonify({"status": "ignored", "attachment": False}), 200
+    # FALLBACK
+    print(f"[Receive] Ignored payload → type={payload_type!r}, content={bool(content)}")
+    return jsonify({"status": "ignored"}), 200
 
 # upload attachment
+# TODO: Pictures are currently rejected/ignored.
 @mira.route("/upload", methods=["POST"])
 def upload():
     if "file" not in request.files:
@@ -311,10 +373,10 @@ def intent():
 # --- Chat route ---
 @mira.route("/chat", methods=["POST"])
 def chat():
-    # Weather special case
+    # Unique case (voice out but not chat)
     if ChatState.weather:
         response = ChatState.weather
-        ChatState.weather = None  # reset after use
+        ChatState.weather = None  # reset
         return jsonify({"reply": response})
 
     # Default to the raw user message
@@ -324,11 +386,24 @@ def chat():
     if isinstance(intent, dict) and intent.get("intent") == "chat":
         # Prefer the matched field if present
         matched_text = intent.get("matched")
+        combined_input = None
+
         if matched_text:
             user_msg = matched_text
 
         try:
-            if HasAttachment.has_attachment():
+            if HasAttachment.has_attachment() and HasAttachment.is_picture():
+                img_path = BASE_PATH / "temp" / "picture.jpeg"
+                print(f"[VL] Reading attachment...")
+                assistant_reply = image_inference(img_path, user_msg)
+                HasAttachment.clear() # both is picture and attachment
+                socketio.emit('attachment_update', {
+                    "has_attachment": False,
+                    "type": "consumed"
+                })
+                return jsonify({"reply": assistant_reply})
+
+            elif HasAttachment.has_attachment():
                 txt_path = BASE_PATH / "temp" / "output.txt"
                 try:
                     context = txt_path.read_text(encoding="utf-8")
@@ -432,19 +507,41 @@ def upload_audio():
 ########################################################################################
 """############################       Nutrition        ##############################"""
 ########################################################################################
-# when we've scanned a barcode
-@mira.route('/barcode', methods=['POST'])
-def handle_scan():
-    data = request.get_json()
-    barcodes = data.get('barcodes')
-    print(f"[Barcode] Received batch: {barcodes}")
-    # get the most promising result
-    counts = Counter(barcodes)
-    most_common = counts.most_common(1)[0][0] if counts else None
-    print(f"[Barcode] Most likely: {most_common}")
-    product = lookup_barcode(most_common)
-    persist_nutri_item_values(product)
-    return jsonify(product or {}), 200
+# when we've made a picture of a barcode
+@mira.route('/nutrition/scan/', methods=['POST'])
+def receive_barcode_image():
+    image_path = BASE_PATH / "temp" / "barcode.jpeg"
+
+    try:
+        # 1. Check if a file was uploaded
+        if 'file' not in request.files:
+            return {"error": "No file part in request"}, 400
+
+        file = request.files['file']
+
+        # 2. Ensure a filename was provided (even if we ignore it)
+        if file.filename == '':
+            return {"error": "No selected file"}, 400
+
+        # 3. Save uploaded file as JPEG — overwrite existing
+        #    Flask's `save()` works on stream directly; no need to convert manually
+        #    If frontend sends JPEG (as in your JS: 'image/jpeg'), it's already fine.
+        file.save(image_path)
+
+        print(f"[Barcode] Saved uploaded image to {image_path}")
+
+        # 4. Scan the saved image
+        code = scan_barcode(str(image_path))  # assuming scan_barcode expects a str path
+
+        if not code:
+            return {"error": "No barcode found in image"}, 400
+
+        print(f"[Barcode] Determined as: {code}")
+        return {"code": code}
+
+    except Exception as e:
+        print(f"[Barcode] Error: {e}")
+        return {"error": str(e)}, 500
 
 # when the user enters daily nutri intake
 @mira.route('/nutrition/settings', methods=['POST'])
@@ -526,7 +623,14 @@ def handle_attachment_status():
     })
 
 # flask subprocess
-def run_flask():
+# we need fucking ssl or the browser will not allow mic access from local network
+# sudo apt install mkcert
+# sudo apt install libnss3-tools
+# mkcert -install
+# mkcert 192.168.{IP}.{IP}
+# mv 192.168.{IP}.{IP}.pem mira_cert.pem
+# mv 192.168.{IP}.{IP}-key.pem mira_key.pem
+def run_https_flask():
     # Suppress /attachment_status logs
     import logging
     class AttachmentStatusFilter(logging.Filter):
@@ -537,18 +641,10 @@ def run_flask():
 
     init_db()
 
-    # we need fucking ssl or the browser will not allow mic access from local network
-    # sudo apt install mkcert
-    # sudo apt install libnss3-tools
-    # mkcert -install
-    # mkcert 192.168.{IP}.{IP}
-    # mv 192.168.{IP}.{IP}.pem mira_cert.pem
-    # mv 192.168.{IP}.{IP}-key.pem mira_key.pem
-
     cert = BASE_PATH / "mira_cert.pem"
     key = BASE_PATH / "mira_key.pem"
     ssl_context = (cert, key)
-    socketio.run(mira, debug=True, use_reloader=False, host='0.0.0.0', port=5001, ssl_context=ssl_context) #
+    socketio.run(mira, debug=True, use_reloader=False, host='0.0.0.0', port=5001, ssl_context=ssl_context)
 
 # local network for browser addon and for the cloudflare tunnel
 # tunnel explodes if it has to deal with https from this end
@@ -570,7 +666,7 @@ if __name__ == '__main__':
     # Start Flask in a background thread
     # HTTPS server
     check_mkcert()
-    flask_thread = threading.Thread(target=run_flask, daemon=True)
+    flask_thread = threading.Thread(target=run_https_flask, daemon=True)
     flask_thread.start()
     # HTTP server
     http_thread = threading.Thread(target=run_http_flask, daemon=True)
@@ -581,6 +677,7 @@ if __name__ == '__main__':
     discover_playlists()
     init_tts()
     get_vosk_model()
+    init_qwen_vl()
 
     # Launch WebView using Qt backend
     set_qt_identity()
