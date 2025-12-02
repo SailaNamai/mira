@@ -67,7 +67,7 @@ It is **very** alpha and currently only suited to DIY enthusiasts.
 </div>
 
 **DO NOT** overload your VRAM. You'll crash with 'oom' and can either delete the DB (generates new on startup) or edit the settings.
-- TODO: Prevent insane user settings inside/recover from insane settings.
+- TODO: Prevent insane user settings inside/recover from insane settings manually.
 
 
 ### Flow:
