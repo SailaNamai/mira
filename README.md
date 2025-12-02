@@ -45,7 +45,7 @@ It is **very** alpha and currently only suited to DIY enthusiasts.
           <tr>
             <td style="text-align:center">16GB VRAM</td>
             <td style="text-align:center">More</td>
-            <td>16GB will leave about 4GB for context window.</td>
+            <td>16GB will leave about 4GB<br>for context window.</td>
           </tr>
           <tr>
             <td style="text-align:center">50 TFLOPS</td>
@@ -55,7 +55,7 @@ It is **very** alpha and currently only suited to DIY enthusiasts.
           <tr>
             <td style="text-align:center">32GB RAM</td>
             <td style="text-align:center">More</td>
-            <td>Qwen3-VL@8B_QK(~9GB); Vosk (~4GB); + context.</td>
+            <td>Qwen3-VL@8B_QK(~9GB);<br>Vosk (~4GB); + context.</td>
           </tr>
           <tr>
             <td style="text-align:center">8c/16t CPU</td>
