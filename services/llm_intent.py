@@ -7,7 +7,7 @@ from services.db_access import write_connection
 from services.wikipedia import wikipedia_lucky_search
 from services.url_to_txt import save_url_text, save_multiple_urls_text, trim_output_txt
 from services.web_search import web_search
-from services.llm_chat import _llm
+import services.config as config
 
 def ask_intent(user_msg: str) -> str:
     system_prompt = get_system_prompt_intent()
@@ -15,10 +15,10 @@ def ask_intent(user_msg: str) -> str:
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": user_msg + "\n/no_think"}
     ]
-    print(f"[User] ask_intent user_msg: {user_msg}")
+    print(f"[Intent] User Message: {user_msg}")
     try:
         print("[Intent] Generating response...")
-        response = _llm.create_chat_completion(messages=messages)
+        response = config.llm.create_chat_completion(messages=messages)
         print("[Intent] Response:")
         print(json.dumps(response, indent=2))
         raw_text = clean_response_text_json(response["choices"][0]["message"]["content"])
@@ -26,7 +26,7 @@ def ask_intent(user_msg: str) -> str:
         print(f"[Intent] Returning: {raw_text}")
         return raw_text
     except Exception as e:
-        print(f"[Error] {e}")
+        print(f"[Intent] Error: {e}")
         raise
 
 def ask_wikipedia(user_msg: str) -> str:
@@ -35,10 +35,10 @@ def ask_wikipedia(user_msg: str) -> str:
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": user_msg + "\n/no_think"}
     ]
-    print(f"[User] ask_wikipedia user_msg: {user_msg}")
+    print(f"[Wikipedia] User Message: {user_msg}")
     try:
         print("[Wikipedia] Generating response...")
-        response = _llm.create_chat_completion(messages=messages)
+        response = config.llm.create_chat_completion(messages=messages)
         raw_text = clean_response_text_plain(response["choices"][0]["message"]["content"])
         raw_text = raw_text.replace(" ", "_")
         print(f"[Wikipedia] search key: {raw_text}")
@@ -56,10 +56,10 @@ def ask_web(user_msg: str) -> str:
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": user_msg + "\n/no_think"}
     ]
-    print(f"[User] ask_web user_msg: {user_msg}")
+    print(f"[WEB search] User Message: {user_msg}")
     try:
         print("[WEB search] Generating response...")
-        response = _llm.create_chat_completion(messages=messages)
+        response = config.llm.create_chat_completion(messages=messages)
         raw_text = clean_response_text_plain(response["choices"][0]["message"]["content"])
         print(f"[WEB search] search key: {raw_text}")
         search = web_search(raw_text)
@@ -75,10 +75,10 @@ def ask_listify(user_msg: str) -> str:
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": user_msg + "\n/no_think"}
     ]
-    print(f"[User] ask_listify user_msg: {user_msg}")
+    print(f"[Listify] User Message: {user_msg}")
     try:
         print("[Listify] Generating response...")
-        response = _llm.create_chat_completion(messages=messages)
+        response = config.llm.create_chat_completion(messages=messages)
         raw_text = clean_response_text_plain(response["choices"][0]["message"]["content"])
         print(f"[Listify] Result: {raw_text}")
         return raw_text

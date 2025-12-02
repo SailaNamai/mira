@@ -4,7 +4,7 @@ import base64
 import os
 import re
 
-import services.globals as g # for llm_vl
+import services.config as config # for llm_vl
 
 # MIME map
 _IMAGE_MIME_TYPES = {
@@ -22,8 +22,8 @@ def image_inference(image_path: str, user_msg: str) -> str | None:
     Run inference on the given image with a custom user message.
     Returns the raw model output (string) or None if empty.
     """
-    if g.llm_vl is None:
-        raise RuntimeError("[VL] Model not initialized. Call init_qwen_vl() first.")
+    if config.llm_vl is None:
+        raise RuntimeError("[LLM VL] Model not initialized. Call init_qwen_vl() first.")
 
     data_uri = image_to_base64_data_uri(image_path)
 
@@ -38,7 +38,7 @@ def image_inference(image_path: str, user_msg: str) -> str | None:
         },
     ]
 
-    res = g.llm_vl.create_chat_completion(
+    res = config.llm_vl.create_chat_completion(
         messages=messages,
         temperature=0.7,
         top_p=0.8,
@@ -69,8 +69,8 @@ def scan_barcode(image_path: str) -> str | None:
     """
     Run inference on the given image and return the barcode digits.
     """
-    if g.llm_vl is None:
-        raise RuntimeError("[VL] Model not initialized. Call init_qwen_vl() first.")
+    if config.llm_vl is None:
+        raise RuntimeError("[LLM VL] Model not initialized. Call init_qwen_vl() first.")
 
     data_uri = image_to_base64_data_uri(image_path)
 
@@ -85,7 +85,7 @@ def scan_barcode(image_path: str) -> str | None:
         },
     ]
 
-    res = g.llm_vl.create_chat_completion(messages=messages, temperature=0.0)
+    res = config.llm_vl.create_chat_completion(messages=messages, temperature=0.0)
     text = res["choices"][0]["message"]["content"].strip()
 
     # Defensive parse: extract first long digit sequence

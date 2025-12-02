@@ -1,3 +1,9 @@
+### alpha 0.5.20251202
+- code cleaning and refactor
+- fixed startup issues with empty DB (sorry)
+- Images through upload route now supported
+- added frontend settings for cpu/gpu where applicable
+
 ### alpha 0.4.20251201
 - minor bugfixes and refactoring
 - added Qwen3-VL (loads to CPU - slow)
@@ -12,7 +18,7 @@
 - automated local ssl certificate generation and refresh
 
 ### alpha 0.2.20251128:
-- fixed a bug with wikipedia context trimming
+- fixed a bug with Wikipedia context trimming
 - refactored chat+intent route into proper modular routes
   - multiple commands per query now possible
   - can now resolve commands + chat (turn the bathroom off and tell me a joke)

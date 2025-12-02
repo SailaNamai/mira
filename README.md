@@ -30,37 +30,47 @@ It is **very** alpha and currently only suited to DIY enthusiasts.
 - Use it for data sensitive tasks.
 
 **Hardware**:
-<table>
-  <thead>
-    <tr>
-      <th style="text-align:center">Minimum</th>
-      <th style="text-align:center">Recommended</th>
-      <th style="text-align:left">Comment</th>
-    </tr>
-  </thead>
-  <tbody>
-    <tr>
-      <td style="text-align:center">16GB VRAM</td>
-      <td style="text-align:center">More</td>
-      <td>16GB will leave about 4GB for context window.</td>
-    </tr>
-    <tr>
-      <td style="text-align:center">50 TFLOPS</td>
-      <td style="text-align:center">Faster</td>
-      <td>Speed is king in our use case.</td>
-    </tr>
-    <tr>
-      <td style="text-align:center">32GB RAM</td>
-      <td style="text-align:center">More</td>
-      <td>Qwen3-VL@8B_QK(~9GB); Vosk (~4GB); + context.</td>
-    </tr>
-    <tr>
-      <td style="text-align:center">8c/16t CPU</td>
-      <td style="text-align:center">Faster+More</td>
-      <td>VL is slow on CPU.</td>
-    </tr>
-  </tbody>
-</table>
+<div style="display:flex; align-items:flex-start; gap:20px;">
+  <table>
+    <thead>
+      <tr>
+        <th style="text-align:center">Minimum</th>
+        <th style="text-align:center">Recommended</th>
+        <th style="text-align:left">Comment</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="text-align:center">16GB VRAM</td>
+        <td style="text-align:center">More</td>
+        <td>16GB will leave about 4GB for context window.</td>
+      </tr>
+      <tr>
+        <td style="text-align:center">50 TFLOPS</td>
+        <td style="text-align:center">Faster</td>
+        <td>Speed is king in our use case.</td>
+      </tr>
+      <tr>
+        <td style="text-align:center">32GB RAM</td>
+        <td style="text-align:center">More</td>
+        <td>Qwen3-VL@8B_QK(~9GB); Vosk (~4GB); + context.</td>
+      </tr>
+      <tr>
+        <td style="text-align:center">8c/16t CPU</td>
+        <td style="text-align:center">Faster+More</td>
+        <td>VL is slow on CPU.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <img src="static/readme/hardware_settings.jpg" alt="hardware settings" style="max-width:250px; height:auto;">
+</div>
+
+**DO NOT** overload your VRAM. You'll crash with 'oom' and can either delete the DB (generates new on startup) or edit the settings.
+- TODO: Prevent insane user settings inside/recover from insane settings.
+
+
+### Flow:
 
 <table>
   <tr>
@@ -189,11 +199,9 @@ Implemented multi intent capability per query (currently testing).
 ### CallChat
 Answers anything that is not a command
 - Reads and discusses files:
-  - LibreOffice-supported input formats for conversion to PDF.
-  - Will likely not do very well with non-text/complex/long documents (it's a small model).
-  - Outright fail if no text, misses context from pictures and likely also from complex tables.
-  - Reads: .doc, .docx, .odt, .rtf, .xls, .xlsx, .ods, .csv, .ppt, .pptx, .odp, .html, .pdf, .txt .py, .js, .ts, .css, .md, .json, .xml, .yaml, .yml, .toml, .sh, .c, .cpp, .java, .rb, .go, .rs
-
+  - Will likely not do very well with complex/long documents (it's a small model).
+  - "Reads": .doc, .docx, .odt, .rtf, .xls, .xlsx, .ods, .csv, .ppt, .pptx, .odp, .html, .pdf, .txt .py, .js, .ts, .css, .md, .json, .xml, .yaml, .yml, .toml, .sh, .c, .cpp, .java, .rb, .go, .rs
+  - "Sees": .png, .jpg, .jpeg, .gif, .bmp, .tiff, .svg, .webp
 - TODO: Have the VL model read embedded pictures and tables, then merge with the text again.
 
 <table>

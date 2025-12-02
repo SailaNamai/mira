@@ -114,3 +114,8 @@ After entering the passkeys (at first startup) you can access:
 
 You can create a .desktop file for the QT window but **DO NOT** start Mira's system with it.
 - Always use a terminal to start Mira.
+
+### (soft) Dependencies
+LibreOffice: For file conversion.
+Clementine: For music.
+Chromium: For browser integration.

@@ -2,7 +2,7 @@
 
 from datetime import datetime, timedelta
 
-from services.globals import PLAYLIST_STEM, BASE_PATH, PLUGS
+from services.config import PLAYLIST_STEM, BASE_PATH, PLUGS
 from services.db_get import GetDB
 from services.weather import get_weather
 
@@ -66,17 +66,17 @@ def get_system_prompt_intent():
         - next song
         - previous song
         - pause playback
-        - Open chromium
-        - Close chromium
+        - open Chromium
+        - close Chromium
         - remove attachment
         - new ShoppingList or append ShoppingList
         - new ToDoList or append ToDoList
-        - get Weather
+        - get weather
 
-        - open firefox
-        - close firefox 
-        - open vlc
-        - close vlc"""
+        - open Firefox
+        - close Firefox 
+        - open VLC
+        - close VLC"""
 
     smart_plugs_str = "\n".join(
         f"on {name.capitalize()}\noff {name.capitalize()}" for name in PLUGS

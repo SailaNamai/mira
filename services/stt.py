@@ -6,7 +6,7 @@ import os
 import subprocess
 import tempfile
 import shutil
-from services.globals import BASE_PATH
+from services.config import BASE_PATH
 
 # Define model path and sample rate
 vosk_model_path = BASE_PATH / "static" / "vosk-model-en-us-0.42-gigaspeech"

@@ -1,6 +1,6 @@
 # services.command_library.py
 
-from services.globals import HasAttachment, PLAYLIST_STEM, PLUGS, ChatContext
+from services.config import HasAttachment, PLAYLIST_STEM, PLUGS, ChatContext
 from services.llm_chat import ChatSession
 from services.llm_intent import ask_listify
 from services.music import music_play, music_pause, music_next, music_previous, music_load
@@ -9,40 +9,64 @@ from services.shopping_list import new_shopping_list, append_shopping_list
 from services.to_do_list import new_to_do_list, append_to_do_list
 from services.smart_plugs import turn_on, turn_off
 
-def command_lookup(command, user_msg):
+def command_lookup(command: str, user_msg: str) -> bool:
     # system
     if command in ("new chat", "new conversation"):
         ChatContext.chat_session = ChatSession()
-    if command == "remove attachment": HasAttachment.set_attachment(False)
+        return True
+    elif command == "remove attachment":
+        HasAttachment.set_attachment(False)
+        return True
 
     # music
-    if command == "play music": music_play()
-    if command in ("pause playback", "stop playback"): music_pause()
-    if command == "next song": music_next()
-    if command == "previous song": music_previous()
-    if command.startswith("play "):
+    elif command == "play music":
+        music_play()
+        return True
+    elif command in ("pause playback", "stop playback"):
+        music_pause()
+        return True
+    elif command == "next song":
+        music_next()
+        return True
+    elif command == "previous song":
+        music_previous()
+        return True
+    elif command.startswith("play "):
         stem = command.removeprefix("play ").strip()
-        if stem in PLAYLIST_STEM: music_load(command)
+        if stem in PLAYLIST_STEM:
+            music_load(command)
+            return True
 
     # chromium
-    if command == "open Chromium": chromium_start()
-    if command == "close Chromium": chromium_terminate()
+    elif command == "open Chromium":
+        chromium_start()
+        return True
+    elif command == "close Chromium":
+        chromium_terminate()
+        return True
 
     # Lists
-    if command in ("new ShoppingList", "append ShoppingList", "new ToDoList", "append ToDoList"):
+    elif command in ("new ShoppingList", "append ShoppingList", "new ToDoList", "append ToDoList"):
         list_items = ask_listify(user_msg)
-        # ShoppingList
-        if command == "new ShoppingList": new_shopping_list(list_items)
-        if command == "append ShoppingList": append_shopping_list(list_items)
-        # To-Do List
-        if command == "new ToDoList": new_to_do_list(list_items)
-        if command == "append ToDoList": append_to_do_list(list_items)
+        if command == "new ShoppingList":
+            new_shopping_list(list_items)
+        elif command == "append ShoppingList":
+            append_shopping_list(list_items)
+        elif command == "new ToDoList":
+            new_to_do_list(list_items)
+        elif command == "append ToDoList":
+            append_to_do_list(list_items)
+        return True
 
     # Smart plugs
-    for plug_name in PLUGS:
-        if command == f"on {plug_name.capitalize()}":
-            turn_on(plug_name)
-        elif command == f"off {plug_name.capitalize()}":
-            turn_off(plug_name)
+    else:
+        for plug_name in PLUGS:
+            if command == f"on {plug_name.capitalize()}":
+                turn_on(plug_name)
+                return True
+            elif command == f"off {plug_name.capitalize()}":
+                turn_off(plug_name)
+                return True
 
-    return
+    # If nothing matched
+    return False

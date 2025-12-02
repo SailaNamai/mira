@@ -3,27 +3,9 @@
 import subprocess
 from pathlib import Path
 from pdfminer.high_level import extract_text
-from services.globals import BASE_PATH
+from services.config import BASE_PATH, FileSupport
 
 output = BASE_PATH / "temp" / "output.txt"
-
-# LibreOffice-supported input formats for conversion to PDF
-LIBRE_SUPPORTED_EXTENSIONS = {
-    ".doc", ".docx", ".odt", ".rtf",
-    ".xls", ".xlsx", ".ods", ".csv",
-    ".ppt", ".pptx", ".odp",
-    ".html", ".pdf", ".txt"
-}
-PLAIN_TEXT_EXTENSIONS = {
-    ".py", ".js", ".ts", ".css", ".html", ".md",
-    ".json", ".xml", ".yaml", ".yml", ".toml",
-    ".sh", ".c", ".cpp", ".java", ".rb", ".go", ".rs"
-}
-
-def is_supported_file(file_path: Path) -> bool:
-    ext = file_path.suffix.lower()
-    return ext in LIBRE_SUPPORTED_EXTENSIONS or ext in PLAIN_TEXT_EXTENSIONS
-
 
 def file_to_txt(input_file: Path):
     temp_dir = BASE_PATH / "temp"
@@ -34,7 +16,7 @@ def file_to_txt(input_file: Path):
     if ext == ".pdf":
         text = extract_text_from_pdf(input_file)
 
-    elif ext == ".txt" or ext in PLAIN_TEXT_EXTENSIONS:
+    elif ext == ".txt" or ext in FileSupport.PLAIN_TEXT_EXTENSIONS:
         text = input_file.read_text(encoding="utf-8")
 
     else:

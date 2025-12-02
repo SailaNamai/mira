@@ -2,7 +2,7 @@
 
 import subprocess
 import trafilatura
-from services.globals import BASE_PATH
+from services.config import BASE_PATH
 from services.llm_chat import count_tokens
 output = BASE_PATH / "temp" / "output.txt"
 SCRIPT_PATH = BASE_PATH / "services" / "helper_extract_worker.py"

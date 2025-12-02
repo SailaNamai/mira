@@ -28,7 +28,8 @@ from pathlib import Path
 """############################    Services imports    ##############################"""
 ########################################################################################
 # System config
-from services.globals import HasAttachment, BASE_PATH, ALLOWED_KEYS, SECRET_KEY, get_local_ip, ChatContext, ChatState, init_qwen_vl
+from services.config import HasAttachment, BASE_PATH, ALLOWED_KEYS, SECRET_KEY, get_local_ip, ChatContext, ChatState, \
+    init_qwen_vl, FileSupport, init_qwen
 from services.mkcert import check_mkcert
 # DB
 from services.db_access import init_db
@@ -36,7 +37,7 @@ from services.db_persist import save_settings, save_nutrition_user_values, updat
 from services.db_get import get_settings, GetDB
 # Cast to text
 from services.url_to_txt import save_url_text
-from services.file_to_txt import is_supported_file, file_to_txt
+from services.file_to_txt import file_to_txt
 from services.stt import get_vosk_model, transcribe_audio
 # Intent
 from services.llm_intent import ask_intent, ask_wikipedia, ask_web
@@ -58,7 +59,6 @@ from services.barcode_api import lookup_barcode
 """###########################         Setup           ##############################"""
 ########################################################################################
 mira = Flask(__name__, static_folder="static", template_folder="templates")
-ChatContext.chat_session = ChatSession()
 socketio = SocketIO(mira)
 CORS(mira, resources={
     r"/upload_audio": {"origins": "*"},
@@ -155,7 +155,7 @@ def receive():
 
             img.save(picture_path, format="JPEG", quality=92)
 
-            print(f"[Receive] Image saved from browser → {picture_path} ({picture_path.stat().st_size} bytes)")
+            print(f"[Receive] Image saved from browser: {picture_path} ({picture_path.stat().st_size} bytes)")
 
             HasAttachment.set_attachment(True)
             HasAttachment.set_picture(True)
@@ -193,7 +193,6 @@ def receive():
     return jsonify({"status": "ignored"}), 200
 
 # upload attachment
-# TODO: Pictures are currently rejected/ignored.
 @mira.route("/upload", methods=["POST"])
 def upload():
     if "file" not in request.files:
@@ -204,7 +203,7 @@ def upload():
         return jsonify({"status": "empty filename"}), 400
 
     filename_path = Path(file.filename)
-    if not is_supported_file(filename_path):
+    if not FileSupport.is_supported(filename_path):
         return jsonify({"status": "unsupported file type"}), 415
 
     # Save the uploaded file to disk
@@ -212,11 +211,32 @@ def upload():
     upload_path.parent.mkdir(parents=True, exist_ok=True)
     file.save(upload_path)
 
-    # Now process the saved file
-    file_to_txt(upload_path)
+    # Decide how to process based on type
+    ext = filename_path.suffix.lower()
+    if ext in FileSupport.IMAGE_EXTENSIONS:
+        picture_path = BASE_PATH / "temp" / "picture.jpeg"
+        # Open and convert to JPEG
+        with Image.open(upload_path) as img:
+            # Ensure compatibility with JPEG (no alpha channel, no palette)
+            if img.mode in ("RGBA", "P"):
+                img = img.convert("RGB")
+            img.save(picture_path, format="JPEG", quality=90)
 
-    print(f"[Upload] Received file: {file.filename}")
+        print(f"[Upload] Converted image to JPEG: {picture_path}")
+        HasAttachment.set_picture(True)
+    else:
+        file_to_txt(upload_path)
+        print(f"[Upload] Received file: {file.filename}")
+
     HasAttachment.set_attachment(True)
+
+    # Cleanup: remove the original uploaded file
+    try:
+        upload_path.unlink()
+        print(f"[Upload] Removed original file: {upload_path}")
+    except Exception as e:
+        print(f"[Upload] Cleanup failed: {e}")
+
     return jsonify({"status": "ok", "filename": file.filename})
 
 # removes attachment
@@ -316,14 +336,14 @@ def intent():
                     intent_type = item.get("intent", "")
                     command = item.get("command", "")
                     if intent_type == "action":
-                        if command == "get Weather":
+                        if command == "get weather":
                             ChatState.weather = ask_weather(user_msg)
                             print(f"[Intent] Determined weather: {ChatState.weather}")
                             # mark as bypass so frontend continues into /chat
                             return jsonify({"reply": "Bypass intent"})
                         else:
-                            command_lookup(command, user_msg)
-                            commands.append(command)
+                            if command_lookup(command, user_msg): commands.append(command)
+                            else: print(f"[Intent] Ignored invalid command: {command}")
                     elif intent_type == "chat":
                         ChatState.intent = item
             # If obj is a dict, iterate through its items
@@ -338,8 +358,8 @@ def intent():
                         # mark as bypass so frontend continues into /chat
                         return jsonify({"reply": "Bypass intent"})
                     else:
-                        command_lookup(command, user_msg)
-                        commands.append(command)
+                        if command_lookup(command, user_msg): commands.append(command)
+                        else: print(f"[Intent] Ignored invalid command: {command}")
                 elif intent_type == "chat":
                     ChatState.intent = obj
 
@@ -386,7 +406,6 @@ def chat():
     if isinstance(intent, dict) and intent.get("intent") == "chat":
         # Prefer the matched field if present
         matched_text = intent.get("matched")
-        combined_input = None
 
         if matched_text:
             user_msg = matched_text
@@ -639,8 +658,6 @@ def run_https_flask():
 
     logging.getLogger('werkzeug').addFilter(AttachmentStatusFilter())
 
-    init_db()
-
     cert = BASE_PATH / "mira_cert.pem"
     key = BASE_PATH / "mira_key.pem"
     ssl_context = (cert, key)
@@ -673,6 +690,9 @@ if __name__ == '__main__':
     http_thread.start()
 
     # various init
+    init_db()
+    init_qwen()
+    ChatContext.chat_session = ChatSession()
     load_plugs_from_db()
     discover_playlists()
     init_tts()

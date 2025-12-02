@@ -4,7 +4,7 @@ import subprocess
 from cryptography import x509
 from cryptography.hazmat.backends import default_backend
 from datetime import datetime, UTC, timedelta
-from services.globals import BASE_PATH, get_local_ip
+from services.config import BASE_PATH, get_local_ip
 from services.db_get import GetDB
 
 def check_mkcert():

@@ -1,7 +1,7 @@
 # services.to_do_list.py
 
 import json
-from services.globals import BASE_PATH
+from services.config import BASE_PATH
 
 to_do_list_path = BASE_PATH / "static" / "lists" / "to_do_list.json"
 

@@ -4,30 +4,12 @@ import re
 import json
 from typing import Optional
 from datetime import datetime
-from llama_cpp import Llama
-#from llama_cpp.llama_chat_format import Qwen3VLChatHandler
-from services.llm_config import Config
 from services.prompts_system import get_system_prompt_chat, get_system_prompt_weather
 from services.db_access import write_connection
-from services.globals import BASE_PATH
+import services.config as config
 
-logs = BASE_PATH / "logs"
+logs = config.BASE_PATH / "logs"
 log_chat = logs / "chat.log"
-
-_llm = Llama(
-    model_path=str(Config.MODEL_PATH),
-    n_ctx=Config.N_CTX,
-    n_threads=Config.N_THREADS,
-    n_gpu_layers=Config.N_GPU_LAYERS,
-    temperature=0.68,
-    top_p=0.95,
-    top_k=20,
-    repeat_penalty=1.0,
-    frequency_penalty=0.0,
-    presence_penalty=0.0,
-    use_mmap=False,
-    chat_format="chatml", #jinja for qwen3 VL
-)
 
 def ask_weather(user_msg: str) -> str:
     system_prompt = get_system_prompt_weather()
@@ -37,7 +19,7 @@ def ask_weather(user_msg: str) -> str:
     ]
     try:
         print("[Weather] Generating response...")
-        response = _llm.create_chat_completion(
+        response = config.llm.create_chat_completion(
             messages=messages
         )
         raw_text = response["choices"][0]["message"]["content"]
@@ -58,7 +40,7 @@ def ask_weather(user_msg: str) -> str:
 class ChatSession:
     def __init__(self):
         system_prompt = get_system_prompt_chat()
-        self.llm = _llm
+        self.llm = config.llm
         self.history = [{"role": "system", "content": system_prompt}]
 
     def trim_history(self):
@@ -69,7 +51,7 @@ class ChatSession:
         messages = self.history[1:]
 
         # Token budget: leave room for system prompt
-        max_tokens = Config.N_CTX - count_tokens(system_prompt["content"])
+        max_tokens = config.MAX_CONTEXT - count_tokens(system_prompt["content"])
 
         trimmed = []
         total_tokens = 0
@@ -170,7 +152,7 @@ def count_tokens(text: Optional[str]) -> int:
         b = str(text).encode('utf-8')
 
     try:
-        token_ids = _llm.tokenize(b, add_bos=False)
+        token_ids = config.llm.tokenize(b, add_bos=False)
     except Exception:
         return 0
 

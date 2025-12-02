@@ -8,7 +8,8 @@ import dateparser
 from datetime import datetime
 from TTS.tts.configs.xtts_config import XttsConfig
 from TTS.tts.models.xtts import Xtts
-from services.globals import BASE_PATH
+from services.config import BASE_PATH
+from services.db_get import GetDB
 
 model = None
 gpt_latent = None
@@ -22,13 +23,21 @@ LANGUAGE = "en"
 def init_tts():
     global model, gpt_latent, speaker_embedding
 
-    print("[XTTS] Initializing ...")
     config = XttsConfig()
     config.load_json(os.path.join(MODEL_DIR, "config.json"))
 
     model = Xtts.init_from_config(config)
     model.load_checkpoint(config, checkpoint_dir=MODEL_DIR, eval=True)
-    model.to("cuda" if torch.cuda.is_available() else "cpu")
+
+    mode = GetDB.get_tts_mode()
+    print(f"[XTTS] Initializing to {mode}...")
+    if mode == "gpu":
+        device = "cuda" if torch.cuda.is_available() else "cpu"
+        if device == "cpu":
+            print("[XTTS] CUDA not available! Falling back to CPU...")
+        model.to(device)
+    else:
+        model.to("cpu")
 
     print("[XTTS] Extracting speaker latents...")
     gpt_latent, speaker_embedding = model.get_conditioning_latents(audio_path=[REFERENCE_WAV])

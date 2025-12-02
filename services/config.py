@@ -1,9 +1,12 @@
-# services.globals.py
+# services.config.py
 
 import socket
+import sys, io
+from contextlib import contextmanager
 from pathlib import Path
 from llama_cpp import Llama
 from llama_cpp.llama_chat_format import Qwen3VLChatHandler
+from services.db_get import GetDB
 
 ########################################################################################
 """############################        System          ##############################"""
@@ -17,12 +20,12 @@ try:
     from .passkeys import ALLOWED_KEYS, SECRET_KEY
 except ImportError:
     if PASSKEYS_PATH.exists():
-        # File exists but import failed (e.g. syntax error) — don't override
+        # File exists but import failed
         raise
     print("[Authenticate] passkeys.py not found. Starting init.")
-    print("[Authenticate] These keys control API/web access")
+    print("[Authenticate] These keys control API/web access.")
 
-    # Prompt for input (won't echo SECRET_KEY if you want extra safety, but let's keep it simple)
+    # Prompt for input
     allowed_input = input("[Authenticate] Enter ALLOWED_KEYS (user passwords, comma-separated, e.g. 'key1,key2'): ").strip()
     secret_input = input("[Authenticate] Enter SECRET_KEY (single string): ").strip()
 
@@ -62,31 +65,87 @@ def get_local_ip():
         s.close()
     return ip
 
+@contextmanager
+def suppress_stdout_stderr():
+    """Redirect stdout/stderr to a dummy buffer temporarily."""
+    old_stdout, old_stderr = sys.stdout, sys.stderr
+    sys.stdout, sys.stderr = io.StringIO(), io.StringIO()
+    try:
+        yield
+    finally:
+        sys.stdout, sys.stderr = old_stdout, old_stderr
+
+########################################################################################
+"""############################       TXT LLM          ##############################"""
+########################################################################################
+llm = None
+MODEL_PATH = BASE_PATH / "Qwen3-8B-UD-Q6_K_XL.gguf"
+MAX_CONTEXT = 8192
+
+def init_qwen():
+    """
+    Initialize Qwen3 into VRAM at Flask startup.
+    """
+    mode = GetDB.get_llm_mode()
+    print(f"[LLM] Model initializing on {mode}...")
+    if mode == "cpu":
+        gpu_layers = 0
+    else:
+        gpu_layers = -1
+
+    global llm
+
+    with suppress_stdout_stderr():
+        llm = Llama(
+            model_path=str(MODEL_PATH),
+            n_ctx=MAX_CONTEXT,
+            n_threads=16,
+            n_gpu_layers=gpu_layers,
+            temperature=0.68,
+            top_p=0.95,
+            top_k=20,
+            repeat_penalty=1.0,
+            frequency_penalty=0.0,
+            presence_penalty=0.0,
+            use_mmap=False,
+            verbose=True, # unwrap the with suppress for full log console
+            chat_format="chatml",
+        )
+    print("[LLM] Model initialized and warmed up.")
+
 ########################################################################################
 """############################        VL LLM          ##############################"""
 ########################################################################################
 llm_vl = None
-MODEL_PATH = BASE_PATH / "Qwen3-VL-8B-Instruct-UD-Q6_K_XL.gguf"
+MODEL_PATH_VL = BASE_PATH / "Qwen3-VL-8B-Instruct-UD-Q6_K_XL.gguf"
 MMPROJ_PATH = BASE_PATH / "Qwen3-VL-8B-Instruct-mmproj-F16.gguf"
 
 def init_qwen_vl():
     """
-    Initialize Qwen3-VL model into RAM at Flask startup.
+    Initialize Qwen3-VL into RAM at Flask startup.
     """
-    print("[VL] Model initializing...")
+    mode = GetDB.get_llm_vl_mode()
+    print(f"[LLM VL] Model initializing on {mode}...")
+    if mode == "cpu":
+        gpu_layers = 0
+    else:
+        gpu_layers = -1
     global llm_vl
-    llm_vl = Llama(
-        model_path=str(MODEL_PATH),
-        chat_handler=Qwen3VLChatHandler(
-            clip_model_path=str(MMPROJ_PATH),
-            force_reasoning=False,  # barcode task is simple, no need to force reasoning
-        ),
-        n_gpu_layers=0,   # offload no layers to GPU
-        n_ctx=2048,        # context size; barcode prompt is short
-        n_threads=16,       # use 16 CPU threads
-        swa_full=True,
-    )
-    print("[VL] Model initialized and warmed up.")
+
+    with suppress_stdout_stderr():
+        llm_vl = Llama(
+            model_path=str(MODEL_PATH_VL),
+            chat_handler=Qwen3VLChatHandler(
+                clip_model_path=str(MMPROJ_PATH),
+                force_reasoning=False,
+            ),
+            n_gpu_layers=gpu_layers,
+            n_ctx=2048,
+            n_threads=16,
+            swa_full=True,
+            verbose=True,  # unwrap the with suppress for full log console
+        )
+    print("[LLM VL] Model initialized and warmed up.")
 
 ########################################################################################
 """############################         Chat           ##############################"""
@@ -129,6 +188,38 @@ class HasAttachment:
     def clear(cls):
         cls._has_attachment = False
         cls._is_picture = False
+
+class FileSupport:
+    # LibreOffice can turn to PDF
+    LIBRE_EXTENSIONS = {
+        ".doc", ".docx", ".odt", ".rtf",
+        ".xls", ".xlsx", ".ods", ".csv",
+        ".ppt", ".pptx", ".odp",
+        ".html", ".pdf", ".txt"
+    }
+    # Already text
+    PLAIN_TEXT_EXTENSIONS = {
+        ".py", ".js", ".ts", ".css", ".html", ".md",
+        ".json", ".xml", ".yaml", ".yml", ".toml",
+        ".sh", ".c", ".cpp", ".java", ".rb", ".go", ".rs"
+    }
+    # Pictures
+    IMAGE_EXTENSIONS = {
+        ".png", ".jpg", ".jpeg", ".gif", ".bmp", ".tiff", ".svg", ".webp"
+    }
+
+    @classmethod
+    def is_supported(cls, file_path: Path) -> bool:
+        ext = file_path.suffix.lower()
+        return (
+            ext in cls.LIBRE_EXTENSIONS
+            or ext in cls.PLAIN_TEXT_EXTENSIONS
+            or ext in cls.IMAGE_EXTENSIONS
+        )
+
+    @classmethod
+    def is_image(cls, file_path: Path) -> bool:
+        return file_path.suffix.lower() in cls.IMAGE_EXTENSIONS
 
 ########################################################################################
 """############################        Various         ##############################"""

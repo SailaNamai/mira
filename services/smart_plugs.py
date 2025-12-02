@@ -2,7 +2,7 @@
 
 import requests
 from services.db_get import GetDB
-from services.globals import PLUGS
+from services.config import PLUGS
 
 def load_plugs_from_db():
     """

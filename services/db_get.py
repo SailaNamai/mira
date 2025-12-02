@@ -32,6 +32,38 @@ class GetDB:
             return dict(row) if row else {}
 
     @staticmethod
+    def get_stt():
+        return GetDB._get_single_value("stt")
+
+    @staticmethod
+    def get_stt_mode():
+        return GetDB._get_single_value("stt_mode")
+
+    @staticmethod
+    def get_llm():
+        return GetDB._get_single_value("llm")
+
+    @staticmethod
+    def get_llm_mode():
+        return GetDB._get_single_value("llm_mode")
+
+    @staticmethod
+    def get_llm_vl():
+        return GetDB._get_single_value("llm_vl")
+
+    @staticmethod
+    def get_llm_vl_mode():
+        return GetDB._get_single_value("llm_vl_mode")
+
+    @staticmethod
+    def get_tts():
+        return GetDB._get_single_value("tts")
+
+    @staticmethod
+    def get_tts_mode():
+        return GetDB._get_single_value("tts_mode")
+
+    @staticmethod
     def get_user_name():
         return GetDB._get_single_value("user_name")
 

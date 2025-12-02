@@ -1,7 +1,7 @@
 # services.shopping_list.py
 
 import json
-from services.globals import BASE_PATH
+from services.config import BASE_PATH
 
 shopping_list_path = BASE_PATH / "static" / "lists" / "shopping_list.json"
 

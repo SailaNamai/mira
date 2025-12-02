@@ -2,8 +2,8 @@
 
 import subprocess
 from PyQt6.QtDBus import QDBusInterface, QDBusConnection
-from services import globals as g
-from services.globals import BASE_PATH
+from services import config as g
+from services.config import BASE_PATH
 
 PLAYLIST_DIR = BASE_PATH / "playlists"
 _clementine_process = None  # Track the subprocess globally
@@ -27,9 +27,9 @@ def _send_mpris_command(method: str):
             iface.call(method)
             print(f"[Music] Sent '{method}' command to Clementine.")
         else:
-            print("[Error] Clementine DBus interface not available.")
+            print("[Music] Clementine DBus interface not available.")
     except Exception as e:
-        print(f"[Error] Failed to send DBus command '{method}': {e}")
+        print(f"[Music] Failed to send DBus command '{method}': {e}")
 
 def music_play():
     """
@@ -38,14 +38,18 @@ def music_play():
     global _clementine_process
     try:
         if _clementine_process is None or _clementine_process.poll() is not None:
-            _clementine_process = subprocess.Popen(["clementine"])
+            _clementine_process = subprocess.Popen(
+                ["clementine"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
             print("[Music] Clementine started.")
         else:
             print("[Music] Clementine already running. Sending Play command...")
 
         _send_mpris_command("Play")
     except Exception as e:
-        print(f"[Error] Failed to start or play Clementine: {e}")
+        print(f"[Music] Failed to start or play Clementine: {e}")
 
 def music_pause():
     _send_mpris_command("Pause")
@@ -74,15 +78,19 @@ def _launch_clementine_with_playlist(filename: str):
         # Build full path to playlist
         path = PLAYLIST_DIR / filename
         if not path.exists():
-            print(f"[Error] Playlist file not found: {path}")
+            print(f"[Music] Playlist file not found: {path}")
             return None
 
         # Start Clementine with playlist
-        _clementine_process = subprocess.Popen(["clementine", str(path)])
+        _clementine_process = subprocess.Popen(
+            ["clementine", str(path)],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        )
         print(f"[Music] Clementine launched with playlist: {filename}")
         return filename
     except Exception as e:
-        print(f"[Error] Failed to launch Clementine with playlist: {e}")
+        print(f"[Music] Failed to launch Clementine with playlist: {e}")
         return None
 
 # load playlist

@@ -6,6 +6,63 @@
         </div>
 
         <div class="settings-body" data-list="main">
+            <input type="hidden" id="stt-mode" value="cpu">
+            <input type="hidden" id="llm-mode" value="cpu">
+            <input type="hidden" id="llm-vl-mode" value="cpu">
+            <input type="hidden" id="tts-mode" value="cpu">
+
+            <h3>Speech to Text</h3>
+            <div class="input-row dual-control">
+                <select id="setting-stt">
+                    <option value="vosk">VOSK (CPU)</option>
+                    <option value="canary">Placeholder 1</option>
+                    <option value="faster_whisper">Placeholder 2</option>
+                </select>
+                <div id="stt-toggle-wrapper" class="toggle" data-target="stt-mode">
+                    <button class="toggle-btn active" data-value="cpu">CPU</button>
+                    <button class="toggle-btn" data-value="gpu">GPU</button>
+                </div>
+            </div>
+
+            <h3>LLM</h3>
+            <div class="input-row dual-control">
+                <select id="setting-llm">
+                    <option value="qwen3">Qwen3</option>
+                    <option value="placeholder1">Placeholder 1</option>
+                    <option value="placeholder2">Placeholder 2</option>
+                </select>
+                <div class="toggle" data-target="llm-mode">
+                    <button class="toggle-btn active" data-value="cpu">CPU</button>
+                    <button class="toggle-btn" data-value="gpu">GPU</button>
+                </div>
+            </div>
+
+            <h3>LLM Vision</h3>
+            <div class="input-row dual-control">
+                <select id="setting-llm-vl">
+                    <option value="qwen3_vl">Qwen3 VL</option>
+                    <option value="placeholder1">Placeholder 1</option>
+                    <option value="placeholder2">Placeholder 2</option>
+                </select>
+                <div class="toggle" data-target="llm-vl-mode">
+                    <button class="toggle-btn active" data-value="cpu">CPU</button>
+                    <button class="toggle-btn" data-value="gpu">GPU</button>
+                </div>
+            </div>
+
+            <h3>Text to Speech</h3>
+            <div class="input-row dual-control">
+                <select id="setting-tts">
+                    <option value="xtts_v2">XTTS-v2</option>
+                    <option value="placeholder1">Placeholder 1</option>
+                    <option value="placeholder2">Placeholder 2</option>
+                </select>
+                <div class="toggle" data-target="tts-mode">
+                    <button class="toggle-btn active" data-value="cpu">CPU</button>
+                    <button class="toggle-btn" data-value="gpu">GPU</button>
+                </div>
+            </div>
+
             <h3>Tasmota Smart Plug 1</h3>
             <div class="input-row">
                 <input type="text" id="user-setting-smartplug1-name" placeholder="Name">
@@ -26,11 +83,6 @@
                 <input type="text" id="user-setting-smartplug4-name" placeholder="Name">
                 <input type="text" id="user-setting-smartplug4-ip" placeholder="IP">
             </div>
-            <input type="text" placeholder="Main value 4">
-            <h3>Main Setting 5</h3>
-            <input type="text" placeholder="Main value 5">
-            <h3>Main Setting 6</h3>
-            <input type="text" placeholder="Main value 6">
         </div>
 
         <div class="settings-body" data-list="user" style="display: none;">
@@ -69,9 +121,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const icon = document.querySelector('.icon-settings');
     const tabs = modal.querySelectorAll('.settings-tab');
     const bodies = modal.querySelectorAll('.settings-body');
-    const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     const scheduleContainer = document.getElementById('schedule-container');
+    const weekdays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
+    // -------------------------------------------------------------------------
+    // 1. Build weekday schedule blocks
+    // -------------------------------------------------------------------------
     weekdays.forEach(day => {
         const dayBlock = document.createElement('div');
         dayBlock.className = 'weekday-block';
@@ -92,67 +147,88 @@ document.addEventListener('DOMContentLoaded', () => {
         scheduleContainer.appendChild(dayBlock);
     });
 
-    function showEntryForm(container) {
+    // -------------------------------------------------------------------------
+    // 2. Schedule entry form (add / edit)
+    // -------------------------------------------------------------------------
+    function showEntryForm(container, existingStart = '', existingEnd = '', existingDesc = '') {
+        // Remove any existing form in this block
+        container.querySelectorAll('.entry-form').forEach(f => f.remove());
+
         const form = document.createElement('div');
         form.className = 'entry-form';
 
         form.innerHTML = `
-            <input type="time" class="start-time" placeholder="Start">
-            <input type="time" class="end-time" placeholder="End">
-            <input type="text" class="activity-desc" placeholder="Activity">
+            <input type="time" class="start-time" value="${existingStart}">
+            <input type="time" class="end-time" value="${existingEnd}">
+            <input type="text" class="activity-desc" placeholder="Activity" value="${existingDesc}">
             <button class="save-entry">Save</button>
+            <button class="cancel-entry">Cancel</button>
         `;
 
-        form.querySelector('.save-entry').addEventListener('click', () => {
-            const start = form.querySelector('.start-time').value;
-            const end = form.querySelector('.end-time').value;
-            const desc = form.querySelector('.activity-desc').value;
-
-            if (start && end && desc) {
-                const entry = document.createElement('div');
-                entry.className = 'schedule-entry';
-                entry.innerHTML = `
-                    ${start} to ${end} - ${desc}
-                    <button class="remove-entry">✖</button>
-                `;
-
-                entry.querySelector('.remove-entry').addEventListener('click', () => entry.remove());
-                entry.addEventListener('click', () => editEntry(entry, start, end, desc));
-
-                container.appendChild(entry);
-                form.remove();
-            }
-        });
+        form.querySelector('.save-entry').addEventListener('click', () => saveEntry(container, form));
+        form.querySelector('.cancel-entry').addEventListener('click', () => form.remove());
 
         container.appendChild(form);
     }
 
-    function editEntry(entry, start, end, desc) {
-        const container = entry.parentElement;
-        entry.remove();
-        showEntryForm(container);
+    function saveEntry(container, form) {
+        const start = form.querySelector('.start-time').value.trim();
+        const end = form.querySelector('.end-time').value.trim();
+        const desc = form.querySelector('.activity-desc').value.trim();
 
-        const form = container.querySelector('.entry-form');
-        form.querySelector('.start-time').value = start;
-        form.querySelector('.end-time').value = end;
-        form.querySelector('.activity-desc').value = desc;
+        if (start && end && desc) {
+            const entry = document.createElement('div');
+            entry.className = 'schedule-entry';
+            entry.innerHTML = `${start} to ${end} - ${desc} <button class="remove-entry">Remove</button>`;
+
+            entry.querySelector('.remove-entry').addEventListener('click', (e) => {
+                e.stopPropagation();
+                entry.remove();
+            });
+
+            entry.addEventListener('click', () => {
+                // Click on the text (not the remove button) → edit
+                showEntryForm(container, start, end, desc);
+                entry.remove();
+            });
+
+            // Insert right after the header
+            const header = container.querySelector('.weekday-header');
+            container.insertBefore(entry, header.nextSibling);
+            form.remove();
+        }
     }
 
-    // Open modal on icon click
-    icon.addEventListener('click', () => {
-        modal.style.display = 'block';
+    // -------------------------------------------------------------------------
+    // 3. CPU / GPU Toggle Logic (works for all four sections)
+    // -------------------------------------------------------------------------
+    document.querySelectorAll('.toggle').forEach(toggle => {
+        const targetId = toggle.dataset.target; // e.g. "stt-mode"
+        const hiddenInput = document.getElementById(targetId);
 
+        toggle.querySelectorAll('.toggle-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                toggle.querySelectorAll('.toggle-btn').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                hiddenInput.value = btn.dataset.value;
+            });
+        });
+    });
+
+    // -------------------------------------------------------------------------
+    // 4. Load settings from backend
+    // -------------------------------------------------------------------------
+    function loadSettings() {
         fetch('/api/settings')
             .then(res => res.json())
             .then(data => {
-                document.getElementById('user-setting-smartplug1-name').value = data.smart_plug1_name || '';
-                document.getElementById('user-setting-smartplug1-ip').value = data.smart_plug1_ip || '';
-                document.getElementById('user-setting-smartplug2-name').value = data.smart_plug2_name || '';
-                document.getElementById('user-setting-smartplug2-ip').value = data.smart_plug2_ip || '';
-                document.getElementById('user-setting-smartplug3-name').value = data.smart_plug3_name || '';
-                document.getElementById('user-setting-smartplug3-ip').value = data.smart_plug3_ip || '';
-                document.getElementById('user-setting-smartplug4-name').value = data.smart_plug4_name || '';
-                document.getElementById('user-setting-smartplug4-ip').value = data.smart_plug4_ip || '';
+                // --- Smart plugs ---
+                ['1','2','3','4'].forEach(n => {
+                    document.getElementById(`user-setting-smartplug${n}-name`).value = data[`smart_plug${n}_name`] || '';
+                    document.getElementById(`user-setting-smartplug${n}-ip`).value   = data[`smart_plug${n}_ip`] || '';
+                });
+
+                // --- User info ---
                 document.getElementById('user-setting-name').value = data.user_name || '';
                 document.getElementById('user-setting-age').value = data.user_birthday || '';
                 document.getElementById('user-setting-city').value = data.location_city || '';
@@ -160,40 +236,76 @@ document.addEventListener('DOMContentLoaded', () => {
                 document.getElementById('user-setting-longitude').value = data.location_longitude || '';
                 document.getElementById('user-setting-additional-info').value = data.additional_info || '';
 
-                // Clear existing schedule entries
-                document.querySelectorAll('.weekday-block').forEach(block => {
-                    block.querySelectorAll('.schedule-entry').forEach(e => e.remove());
-                });
+                // --- AI settings ---
+                document.getElementById('setting-stt').value = data.stt || 'vosk';
+                document.getElementById('setting-llm').value = data.llm || 'qwen3';
+                document.getElementById('setting-llm-vl').value = data.llm_vl || 'qwen3_vl';
+                document.getElementById('setting-tts').value = data.tts || 'xtts_v2';
 
-                // Populate schedule
-                ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'].forEach(day => {
+                // Modes (cpu/gpu)
+                document.getElementById('stt-mode').value = data.stt_mode || 'cpu';
+                document.getElementById('llm-mode').value = data.llm_mode || 'cpu';
+                document.getElementById('llm-vl-mode').value = data.llm_vl_mode || 'cpu';
+                document.getElementById('tts-mode').value = data.tts_mode || 'cpu';
+
+                // Update toggle button visuals
+                document.querySelectorAll('.toggle').forEach(toggle => {
+                    const mode = document.getElementById(toggle.dataset.target).value;
+                    toggle.querySelectorAll('.toggle-btn').forEach(btn => {
+                        btn.classList.toggle('active', btn.dataset.value === mode);
+                    });
+                });
+                updateSttToggleVisibility();
+
+                // --- Schedule ---
+                document.querySelectorAll('.schedule-entry').forEach(e => e.remove()); // clear
+
+                weekdays.forEach(day => {
+                    const key = `schedule_${day.toLowerCase()}`;
+                    const lines = (data[key] || '').split('\n').filter(l => l.trim());
                     const block = document.querySelector(`.weekday-block[data-day="${day}"]`);
-                    const entries = (data[`schedule_${day.toLowerCase()}`] || '').split('\n');
-                    entries.forEach(line => {
-                        if (line.trim()) {
+
+                    lines.forEach(line => {
+                        const match = line.match(/^(.+?)\s+to\s+(.+?)\s+-\s+(.+)$/);
+                        if (match) {
+                            const [, start, end, desc] = match;
                             const entry = document.createElement('div');
                             entry.className = 'schedule-entry';
-                            entry.innerHTML = `${line} <button class="remove-entry">✖</button>`;
-                            entry.querySelector('.remove-entry').addEventListener('click', () => entry.remove());
-                            const [time, ...desc] = line.split(' - ');
-                            const [start, end] = time.split(' to ');
-                            entry.addEventListener('click', () => editEntry(entry, start.trim(), end.trim(), desc.join(' - ').trim()));
+                            entry.innerHTML = `${start} to ${end} - ${desc} <button class="remove-entry">Remove</button>`;
+                            entry.querySelector('.remove-entry').addEventListener('click', (e) => {
+                                e.stopPropagation();
+                                entry.remove();
+                            });
+                            entry.addEventListener('click', () => {
+                                showEntryForm(block, start, end, desc);
+                                entry.remove();
+                            });
                             block.insertBefore(entry, block.querySelector('.weekday-header').nextSibling);
                         }
                     });
                 });
-            });
+            })
+            .catch(err => console.error('Failed to load settings:', err));
+    }
+
+    // -------------------------------------------------------------------------
+    // 5. Open modal → load settings
+    // -------------------------------------------------------------------------
+    icon.addEventListener('click', () => {
+        modal.style.display = 'block';
+        loadSettings();
     });
 
-
-    // Close modal when clicking outside modal-content
+    // Close when clicking outside
     window.addEventListener('click', (e) => {
         if (e.target === modal) {
             modal.style.display = 'none';
         }
     });
 
-    // Tab switching logic
+    // -------------------------------------------------------------------------
+    // 6. Tab switching
+    // -------------------------------------------------------------------------
     tabs.forEach(tab => {
         tab.addEventListener('click', () => {
             tabs.forEach(t => t.classList.remove('active'));
@@ -204,52 +316,98 @@ document.addEventListener('DOMContentLoaded', () => {
             });
         });
     });
-});
 
-// save button
-document.getElementById('settings-save').addEventListener('click', () => {
-    const data = {
-        smart_plug1_name: document.getElementById('user-setting-smartplug1-name').value,
-        smart_plug1_ip: document.getElementById('user-setting-smartplug1-ip').value,
-        smart_plug2_name: document.getElementById('user-setting-smartplug2-name').value,
-        smart_plug2_ip: document.getElementById('user-setting-smartplug2-ip').value,
-        smart_plug3_name: document.getElementById('user-setting-smartplug3-name').value,
-        smart_plug3_ip: document.getElementById('user-setting-smartplug3-ip').value,
-        smart_plug4_name: document.getElementById('user-setting-smartplug4-name').value,
-        smart_plug4_ip: document.getElementById('user-setting-smartplug4-ip').value,
-        user_name: document.getElementById('user-setting-name').value,
-        user_birthday: document.getElementById('user-setting-age').value,
-        location_city: document.getElementById('user-setting-city').value,
-        location_latitude: document.getElementById('user-setting-latitude').value,
-        location_longitude: document.getElementById('user-setting-longitude').value,
-        additional_info: document.getElementById('user-setting-additional-info').value,
-    };
+    // -------------------------------------------------------------------------
+    // 7. SAVE button
+    // -------------------------------------------------------------------------
+    document.getElementById('settings-save').addEventListener('click', () => {
+        const data = {
+            // Smart plugs
+            smart_plug1_name: document.getElementById('user-setting-smartplug1-name').value,
+            smart_plug1_ip:   document.getElementById('user-setting-smartplug1-ip').value,
+            smart_plug2_name: document.getElementById('user-setting-smartplug2-name').value,
+            smart_plug2_ip:   document.getElementById('user-setting-smartplug2-ip').value,
+            smart_plug3_name: document.getElementById('user-setting-smartplug3-name').value,
+            smart_plug3_ip:   document.getElementById('user-setting-smartplug3-ip').value,
+            smart_plug4_name: document.getElementById('user-setting-smartplug4-name').value,
+            smart_plug4_ip:   document.getElementById('user-setting-smartplug4-ip').value,
 
-    // Collect schedule entries
-    ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'].forEach(day => {
-        const entries = [];
-        document.querySelectorAll(`.weekday-block[data-day="${day}"] .schedule-entry`).forEach(entry => {
-            entries.push(entry.textContent.replace('✖', '').trim());
+            // User info
+            user_name:        document.getElementById('user-setting-name').value,
+            user_birthday:    document.getElementById('user-setting-age').value,
+            location_city:    document.getElementById('user-setting-city').value,
+            location_latitude:  document.getElementById('user-setting-latitude').value,
+            location_longitude: document.getElementById('user-setting-longitude').value,
+            additional_info:  document.getElementById('user-setting-additional-info').value,
+
+            // AI SETTINGS
+            stt: document.getElementById('setting-stt').value,
+            stt_mode:     document.getElementById('stt-mode').value,
+
+            llm: document.getElementById('setting-llm').value,
+            llm_mode:     document.getElementById('llm-mode').value,
+
+            llm_vl: document.getElementById('setting-llm-vl').value,
+            llm_vl_mode:   document.getElementById('llm-vl-mode').value,
+
+            tts: document.getElementById('setting-tts').value,
+            tts_mode:     document.getElementById('tts-mode').value,
+        };
+
+        // Schedule
+        weekdays.forEach(day => {
+            const entries = [];
+            document.querySelectorAll(`.weekday-block[data-day="${day}"] .schedule-entry`).forEach(entry => {
+                entries.push(entry.textContent.replace('Remove', '').trim());
+            });
+            data[`schedule_${day.toLowerCase()}`] = entries.join('\n');
         });
-        data[`schedule_${day.toLowerCase()}`] = entries.join('\n');
-    });
 
-    fetch('/api/settings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-    })
-    .then(res => res.json())
-    .then(response => {
-        console.log('Settings saved:', response);
-        document.getElementById('settings-modal').style.display = 'none';
-    })
-    .catch(error => {
-        console.error('Error saving settings:', error);
+        fetch('/api/settings', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        })
+        .then(r => r.json())
+        .then(resp => {
+            console.log('Settings saved successfully:', resp);
+            modal.style.display = 'none';
+        })
+        .catch(err => {
+            console.error('Error saving settings:', err);
+            alert('Failed to save settings – check console');
+        });
     });
+    // -------------------------------------------------------------------------
+    // 8. Handle STT selection → hide/show GPU toggle for VOSK only
+    // -------------------------------------------------------------------------
+    const sttSelect = document.getElementById('setting-stt');
+    const sttToggleWrapper = document.getElementById('stt-toggle-wrapper');
+    const sttModeInput = document.getElementById('stt-mode');
+
+    function updateSttToggleVisibility() {
+        const isVosk = sttSelect.value === 'vosk';
+
+        if (isVosk) {
+            // Force CPU and hide toggle
+            sttModeInput.value = 'cpu';
+            sttToggleWrapper.style.display = 'none';
+            // Ensure CPU button is visually active (in case reload happened)
+            sttToggleWrapper.querySelectorAll('.toggle-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.value === 'cpu');
+            });
+        } else {
+            // Show toggle and restore saved mode (fallback to CPU)
+            sttToggleWrapper.style.display = 'flex'; // or 'block' — match your CSS
+        }
+    }
+
+    // Initial call (in case loaded with vosk selected)
+    updateSttToggleVisibility();
+
+    // Listen for changes
+    sttSelect.addEventListener('change', updateSttToggleVisibility);
 });
-
-
 </script>
 
 <style>
@@ -415,5 +573,51 @@ document.getElementById('settings-save').addEventListener('click', () => {
     cursor: pointer;
     font-size: 14px;
     color: #666;
+}
+
+/* Dual control row: dropdown + toggle side by side */
+.dual-control {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 10px;
+}
+
+/* Dropdown styling */
+.dual-control select {
+    flex: 1;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background-color: #fff;
+    font-size: 14px;
+}
+
+/* Toggle container */
+.toggle {
+    display: flex;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+/* Toggle buttons */
+.toggle-btn {
+    flex: 1;
+    padding: 8px 12px;
+    background-color: #f5f5f5;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+    transition: background-color 0.3s ease;
+}
+
+.toggle-btn:hover {
+    background-color: #e0e0e0;
+}
+
+.toggle-btn.active {
+    background-color: #0078D4;
+    color: #fff;
 }
 </style>

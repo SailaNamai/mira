@@ -34,27 +34,35 @@ CREATE TABLE IF NOT EXISTS wikipedia (
 -- Settings
 CREATE TABLE IF NOT EXISTS settings (
   id                  INTEGER PRIMARY KEY CHECK (id = 1),  -- singleton row
-  smart_plug1_name    TEXT,                                -- Tasmota Smart Plug Location
-  smart_plug1_ip      TEXT,                                -- Tasmota Smart Plug IP
-  smart_plug2_name    TEXT,                                -- Tasmota Smart Plug Location
-  smart_plug2_ip      TEXT,                                -- Tasmota Smart Plug IP
-  smart_plug3_name    TEXT,                                -- Tasmota Smart Plug Location
-  smart_plug3_ip      TEXT,                                -- Tasmota Smart Plug IP
-  smart_plug4_name    TEXT,                                -- Tasmota Smart Plug Location
-  smart_plug4_ip      TEXT,                                -- Tasmota Smart Plug IP
-  user_name           TEXT,                                -- User name
-  user_birthday       TEXT,                                -- User birthday
-  location_city       TEXT,                                -- City
-  location_latitude   TEXT,                                -- Latitude
-  location_longitude  TEXT,                                -- Longitude
-  schedule_monday     TEXT,                                -- Monday
-  schedule_tuesday    TEXT,                                -- Tuesday
-  schedule_wednesday  TEXT,                                -- Wednesday
-  schedule_thursday   TEXT,                                -- Thursday
-  schedule_friday     TEXT,                                -- Friday
-  schedule_saturday   TEXT,                                -- Saturday
-  schedule_sunday     TEXT,                                -- Sunday
-  additional_info     TEXT                                 -- Additional Info
+  stt                 TEXT,
+  stt_mode            TEXT,
+  llm                 TEXT,
+  llm_mode            TEXT,
+  llm_vl              TEXT,
+  llm_vl_mode         TEXT,
+  tts                 TEXT,
+  tts_mode            TEXT,
+  smart_plug1_name    TEXT,
+  smart_plug1_ip      TEXT,
+  smart_plug2_name    TEXT,
+  smart_plug2_ip      TEXT,
+  smart_plug3_name    TEXT,
+  smart_plug3_ip      TEXT,
+  smart_plug4_name    TEXT,
+  smart_plug4_ip      TEXT,
+  user_name           TEXT,
+  user_birthday       TEXT,
+  location_city       TEXT,
+  location_latitude   TEXT,
+  location_longitude  TEXT,
+  schedule_monday     TEXT,
+  schedule_tuesday    TEXT,
+  schedule_wednesday  TEXT,
+  schedule_thursday   TEXT,
+  schedule_friday     TEXT,
+  schedule_saturday   TEXT,
+  schedule_sunday     TEXT,
+  additional_info     TEXT
 );
 
 -- Nutrition Items
