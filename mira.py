@@ -352,7 +352,7 @@ def intent():
                 intent_type = obj.get("intent", "")
                 command = obj.get("command", "")
                 if intent_type == "action":
-                    if command == "get Weather":
+                    if command == "get weather":
                         ChatState.weather = ask_weather(user_msg)
                         print(f"[Intent] Determined weather: {ChatState.weather}")
                         # mark as bypass so frontend continues into /chat
@@ -543,8 +543,6 @@ def receive_barcode_image():
             return {"error": "No selected file"}, 400
 
         # 3. Save uploaded file as JPEG — overwrite existing
-        #    Flask's `save()` works on stream directly; no need to convert manually
-        #    If frontend sends JPEG (as in your JS: 'image/jpeg'), it's already fine.
         file.save(image_path)
 
         print(f"[Barcode] Saved uploaded image to {image_path}")
@@ -643,12 +641,6 @@ def handle_attachment_status():
 
 # flask subprocess
 # we need fucking ssl or the browser will not allow mic access from local network
-# sudo apt install mkcert
-# sudo apt install libnss3-tools
-# mkcert -install
-# mkcert 192.168.{IP}.{IP}
-# mv 192.168.{IP}.{IP}.pem mira_cert.pem
-# mv 192.168.{IP}.{IP}-key.pem mira_key.pem
 def run_https_flask():
     # Suppress /attachment_status logs
     import logging

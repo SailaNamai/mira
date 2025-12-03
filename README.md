@@ -55,7 +55,7 @@ It is **very** alpha and currently only suited to DIY enthusiasts.
           <tr>
             <td style="text-align:center">32GB RAM</td>
             <td style="text-align:center">More</td>
-            <td>Qwen3-VL@8B_QK(~9GB);<br>Vosk (~4GB); + context.</td>
+            <td>Qwen3-VL@8B_Q6K(~9GB);<br>Vosk (~4GB); + context.</td>
           </tr>
           <tr>
             <td style="text-align:center">8c/16t CPU</td>
@@ -72,7 +72,7 @@ It is **very** alpha and currently only suited to DIY enthusiasts.
 </table>
 
 **DO NOT** overload your VRAM. You'll crash with 'oom' and can either delete the DB (generates new on startup) or edit the settings manually.
-- TODO: Prevent insane user settings inside/recover from insane settings.
+- TODO: Prevent insane user settings/recover from insane settings.
 
 
 ### Flow:
@@ -327,7 +327,7 @@ Clicking a link will pass the link_url, empty space on the page will pass the pa
 ### Take a picture (done, testing)
 Really requires more hardware than I currently have but works.
 - Camera access from phone and ability to send a picture to flask (done)
-- If you have the hardware (24GB VRAM min) set: ```.../mira/services/globals.py n_gpu_layers=-1```
+- ~~If you have the hardware (24GB VRAM min) set: ```.../mira/services/globals.py n_gpu_layers=-1```~~
 
 ![vl_1.png](static/readme/vl_1.png)
 
@@ -369,7 +369,7 @@ llama_perf_context_print: prompt eval time =    1660.66 ms /    81 tokens (   20
 llama_perf_context_print:        eval time =    1430.54 ms /    12 runs   (  119.21 ms per token,     8.39 tokens per second)
 llama_perf_context_print:       total time =    1566.72 ms /    93 tokens
 llama_perf_context_print:    graphs reused =          0
-[Barcode] Determined as: 544900038715
+[Barcode] Determined as: 5449000038715
 ```
 
 - Getting the **product info** from world.openfoodfacts.org (sort of)

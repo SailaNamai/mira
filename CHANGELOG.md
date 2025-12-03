@@ -1,5 +1,9 @@
-### alpha 0.5.20251202
+###
+
+
+### alpha 0.5.20251203
 - code cleaning and refactor
+- fixed typo in weather function call
 - fixed startup issues with empty DB (sorry)
 - Images through upload route now supported
 - added frontend settings for cpu/gpu where applicable
