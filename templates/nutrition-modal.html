@@ -12,10 +12,7 @@
 
     <div id="nutri-settings-dialog" class="nutri-settings-dialog" style="display: none;">
       <div class="nutri-settings-content">
-        <h3>Set Daily Nutrition Goals</h3>
-        <label>Kcal Budget:
-          <input type="number" id="input-kcal" placeholder="e.g. 2000">
-        </label>
+        <h3>Set Daily Goals</h3>
         <label>Carbs (g):
           <input type="number" id="input-carbs" placeholder="e.g. 250">
         </label>
@@ -24,6 +21,9 @@
         </label>
         <label>Protein (g):
           <input type="number" id="input-protein" placeholder="e.g. 100">
+        </label>
+        <label>Kcal Budget:
+          <input type="number" id="input-kcal" placeholder="e.g. 2000">
         </label>
         <div class="nutri-settings-buttons">
           <button id="save-nutri-settings">Save</button>
@@ -51,7 +51,8 @@
               <div class="kcal-value" id="kcal-burned">0 kcal</div>
             </div>
           </div>
-        </div>
+      </div>
+
       <!-- carbs/fat/protein -->
       <div class="nutrition-item">
           <div class="nutri-grid">
@@ -72,11 +73,12 @@
     <!-- footer -->
     <div class="nutrition-footer">
       <button id="barcode-scanner">Scan Barcode</button>
+      <button id="food-search-btn">Search</button>
     </div>
 
         <div id="nutrition-scanner-overlay" class="nutrition-scanner-overlay" style="display: none;">
           <div class="nutrition-scanner-header">
-            <!-- Optional top-right close button (kept for redundancy) -->
+            <!-- Top-right close button -->
             <button id="close-scanner-top" style="background:none;border:none;color:white;font-size:28px;cursor:pointer;">X</button>
           </div>
 
@@ -98,15 +100,1336 @@
     <!-- Result dialog -->
     <div id="scan-result-dialog" class="scan-result-dialog" style="display:none;">
       <div class="scan-result-content">
-        <h3>Scan Result</h3>
-        <p id="scan-result-text"></p>
-        <div class="scan-result-buttons">
+
+        <!-- Waiting message -->
+        <div id="scan-waiting" class="scan-waiting" style="display:none;">
+          Waiting for response…
+        </div>
+
+        <!-- Header -->
+        <div class="scan-result-header">
+          <span id="scan-barcode"></span>
+        </div>
+        <h3 id="scan-product-name"></h3>
+
+        <!-- Totals -->
+        <div class="scan-result-table">
+          <div class="scan-row">
+            <div class="scan-head">Total:</div>
+            <div class="scan-head">Serving:</div>
+            <div class="scan-head">Units:</div>
+          </div>
+          <div class="scan-row">
+            <div class="scan-val" id="scan-quantity"></div>
+            <div class="scan-val" id="scan-serving"></div>
+            <div class="scan-val" id="scan-product-quantity"></div>
+          </div>
+
+          <hr>
+
+          <!-- Nutriments header -->
+          <div class="scan-row">
+            <div class="scan-head">per:</div>
+            <div class="scan-head">100</div>
+            <div class="scan-head">Serving</div>
+            <div class="scan-head">Unit</div>
+          </div>
+
+          <!-- Nutriments values -->
+          <div class="scan-row">
+            <div class="scan-head">Kcal:</div>
+            <div class="scan-val" id="kcal-100"></div>
+            <div class="scan-val" id="kcal-serving"></div>
+            <div class="scan-val" id="kcal-unit"></div>
+          </div>
+          <div class="scan-row">
+            <div class="scan-head">Carbs:</div>
+            <div class="scan-val" id="carbs-100"></div>
+            <div class="scan-val" id="carbs-serving"></div>
+            <div class="scan-val" id="carbs-unit"></div>
+          </div>
+          <div class="scan-row">
+            <div class="scan-head">Fat:</div>
+            <div class="scan-val" id="fat-100"></div>
+            <div class="scan-val" id="fat-serving"></div>
+            <div class="scan-val" id="fat-unit"></div>
+          </div>
+          <div class="scan-row">
+            <div class="scan-head">Protein:</div>
+            <div class="scan-val" id="protein-100"></div>
+            <div class="scan-val" id="protein-serving"></div>
+            <div class="scan-val" id="protein-unit"></div>
+          </div>
+        </div>
+
+        <!-- Amount/Units block -->
+        <div class="scan-amount-units">
+          <div class="scan-row">
+            <div class="scan-head">Amount:</div>
+            <div class="scan-head">Units:</div>
+          </div>
+          <div class="scan-row">
+            <input type="number" id="amount-input" class="scan-input" min="0" step="1">
+            <input type="number" id="units-input" class="scan-input" min="0" step="1">
+          </div>
+        </div>
+
+        <!-- Calculated intake table -->
+        <div class="scan-calculated-intake">
+          <div class="scan-row">
+            <div class="scan-head">Kcal</div>
+            <div class="scan-head">Carbs</div>
+            <div class="scan-head">Fat</div>
+            <div class="scan-head">Protein</div>
+          </div>
+          <div class="scan-row">
+            <div class="scan-val calc-val" id="calc-kcal">0</div>
+            <div class="scan-val calc-val" id="calc-carbs">0g</div>
+            <div class="scan-val calc-val" id="calc-fat">0g</div>
+            <div class="scan-val calc-val" id="calc-protein">0g</div>
+          </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="scan-result-footer">
+          <button id="confirm-result">Confirm</button>
           <button id="close-result-dialog">Close</button>
         </div>
       </div>
     </div>
+
+
+  <!-- LOG HISTORY DIALOG -->
+    <div id="log-history-dialog" class="log-history-dialog" style="display: none;">
+      <div class="log-history-content">
+
+        <h3>Today's Log</h3>
+
+        <!-- Tabs -->
+        <div class="log-tabs">
+          <button class="log-tab active" data-tab="items">Items</button>
+          <button class="log-tab" data-tab="activities">Activities</button>
+        </div>
+
+        <!-- Tab Contents -->
+        <div class="log-tab-content">
+
+          <!-- Items Tab -->
+          <div id="tab-items" class="log-tab-pane active">
+            <div id="consumed-items-list">
+              <!-- Dynamically populated -->
+              <p style="text-align:center; color:#888;">Loading items...</p>
+            </div>
+          </div>
+
+          <!-- Activities Tab (dummy data) -->
+          <div id="tab-activities" class="log-tab-pane">
+            <div class="activity-item">
+              <div class="activity-name">Running</div>
+              <div class="activity-details">30 min • 250 kcal burned</div>
+            </div>
+            <div class="activity-item">
+              <div class="activity-name">Cycling</div>
+              <div class="activity-details">45 min • 380 kcal burned</div>
+            </div>
+            <div class="activity-item">
+              <div class="activity-name">Weight Training</div>
+              <div class="activity-details">60 min • 220 kcal burned</div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- Footer -->
+        <div class="log-history-footer">
+          <button id="log-history-save">Save Changes</button>
+          <button id="log-history-close">Close</button>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- FOOD SEARCH DIALOG -->
+    <div id="food-search-dialog" class="food-search-dialog" style="display: none;">
+      <div class="food-search-content">
+        <div class="food-search-header">
+          <h3>Search Foods</h3>
+          <button id="close-food-search" class="close-dialog-btn">×</button>
+        </div>
+
+        <div id="search-results-container" class="search-results-container">
+          <!-- Results appended here, newest/first at bottom -->
+          <div id="no-results" style="text-align:center; color:#888; padding:16px;">Start typing to search...</div>
+        </div>
+
+        <div class="food-search-input-area">
+          <input type="text" id="food-search-input" placeholder="Enter here...">
+        </div>
+      </div>
+    </div>
+
   </div>
 </div>
+
+<script>
+// ─────────────────────────────────────────────────────────────────
+// FOOD SEARCH DIALOG (Refactored for reliable selection + keyboard persistence)
+// ─────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+  const searchDialog = document.getElementById('food-search-dialog');
+  const searchBtn = document.getElementById('food-search-btn');
+  const closeSearchBtn = document.getElementById('close-food-search');
+  const searchInput = document.getElementById('food-search-input');
+  const resultsContainer = document.getElementById('search-results-container');
+
+  // Open
+  searchBtn?.addEventListener('click', () => {
+    document.body.classList.add('dialog-open');
+    searchDialog.style.display = 'flex';
+    setTimeout(() => searchInput.focus(), 100);
+  });
+
+  const closeSearchDialog = () => {
+    searchDialog.style.display = 'none';
+    document.body.classList.remove('dialog-open');
+    searchInput.value = '';
+    resultsContainer.innerHTML = '<div style="text-align:center; color:#888; padding:16px;">Start typing to search...</div>';
+    // ❌ Removed searchInput.blur(); → keyboard stays until OS button
+  };
+
+  closeSearchBtn?.addEventListener('click', closeSearchDialog);
+  searchDialog.addEventListener('click', (e) => {
+    if (e.target === searchDialog) closeSearchDialog();
+  });
+
+  // Live search — debounced
+  let searchTimeout;
+  searchInput.addEventListener('input', () => {
+    clearTimeout(searchTimeout);
+    const query = searchInput.value.trim();
+
+    if (query.length < 3) {
+      resultsContainer.innerHTML = '<div style="text-align:center; color:#888; padding:16px;">Type at least 3 characters...</div>';
+      return;
+    }
+
+    resultsContainer.innerHTML = '<div style="text-align:center; color:#888; padding:16px;">Searching...</div>';
+
+    searchTimeout = setTimeout(() => {
+      fetch(`/nutrition/search?q=${encodeURIComponent(query)}`)
+        .then(r => r.json())
+        .then(items => {
+          if (!Array.isArray(items) || items.length === 0) {
+            resultsContainer.innerHTML = '<div style="text-align:center; color:#888; padding:16px;">No results found.</div>';
+            return;
+          }
+
+          resultsContainer.innerHTML = '';
+
+          items.forEach(item => {
+            const div = document.createElement('div');
+            div.className = 'search-result-item';
+            div.setAttribute('role', 'button');
+            div.setAttribute('tabindex', '0');
+
+            const productName = item.product_name || 'Unknown';
+            const kcal = item.nutriments?.energy_kcal_100g ?? null;
+            const details = kcal ? `${kcal} kcal/100g` : '';
+            const quantity = item.quantity ? ' • ' + item.quantity : '';
+
+            div.innerHTML = `
+              <div class="search-result-name">${escapeHtml(productName)}</div>
+              <div class="search-result-details">${escapeHtml(details)}${escapeHtml(quantity)}</div>
+            `;
+
+            const selectItem = (e) => {
+              e?.preventDefault();
+              e?.stopPropagation();
+
+              const adaptedData = {
+                barcode: item.barcode ?? '-',
+                product_name: productName,
+                quantity: item.quantity ?? null,
+                serving_size: item.serving_size ?? null,
+                product_quantity: item.product_quantity ?? null,
+                nutriments: {
+                  energy_kcal_100g:   item.nutriments?.energy_kcal_100g ?? null,
+                  carbohydrates_100g: item.nutriments?.carbohydrates_100g ?? null,
+                  fat_100g:           item.nutriments?.fat_100g ?? null,
+                  proteins_100g:      item.nutriments?.proteins_100g ?? null,
+                }
+              };
+
+              showScanResult(adaptedData);
+
+              // Delay closing slightly so selection logic completes
+              setTimeout(closeSearchDialog, 50);
+            };
+
+            // Use pointerup for reliable mobile tap handling
+            div.addEventListener('pointerup', selectItem);
+
+            // Keyboard support
+            div.addEventListener('keydown', (e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                selectItem();
+              }
+            });
+
+            resultsContainer.prepend(div);
+          });
+
+          // Keep input focused after results update
+          searchInput.focus();
+        })
+        .catch(err => {
+          console.error('Search failed:', err);
+          resultsContainer.innerHTML = '<div style="text-align:center; color:red; padding:16px;">Search failed. Try again.</div>';
+          searchInput.focus();
+        });
+    }, 300);
+  });
+});
+
+function escapeHtml(str) {
+  if (typeof str !== 'string') return str;
+  return str
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+// Prevent keyboard dismiss when tapping inside results container
+document.querySelector('.search-results-container')?.addEventListener('pointerdown', (e) => {
+  if (e.target.closest('.search-result-item')) return;
+  e.preventDefault();
+}, { passive: false });
+
+document.querySelector('.search-results-container')?.addEventListener('touchstart', (e) => {
+  if (e.target.closest('.search-result-item')) return;
+}, { passive: true });
+</script>
+
+<style>
+/* Food Search Dialog - Reverted to Centered + Keyboard Fixes */
+
+/* prevent body scroll when dialog open */
+.dialog-open {
+  overflow: hidden;
+  touch-action: none;         /* helps with scroll chaining */
+  overscroll-behavior-y: none;
+}
+
+.food-search-dialog {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: none;
+  justify-content: flex-end;
+  align-items: flex-end;
+  z-index: 1150;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  box-sizing: border-box;
+  overscroll-behavior: none;      /* block scroll chaining to page */
+  overscroll-behavior-y: none;
+}
+
+/* Strengthen overscroll blocking on the modal content and dialog */
+.food-search-content {
+  background: white;
+  border-radius: 16px 16px 0 0;
+  width: 100%;
+  max-width: 100%;
+  height: calc(var(--vh) * 100);
+  max-height: calc(var(--vh) * 100);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 -5px 30px rgba(0,0,0,0.25);
+  overflow: hidden;
+  overscroll-behavior-y: none;     /* Changed from contain → none */
+}
+
+.food-search-header {
+  padding: 8px 12px;          /* smaller padding */
+  border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: flex-end;  /* only close button */
+  align-items: center;
+  flex-shrink: 0;
+  background: white;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.food-search-header h3 {
+  margin: 0;
+  font-size: 12px;
+}
+
+.close-dialog-btn {
+  background: none;
+  border: none;
+  font-size: 28px;            /* slightly smaller */
+  cursor: pointer;
+  color: #666;
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+}
+
+.close-dialog-btn:active {
+  background: #eee;
+}
+
+.search-results-container {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column-reverse;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: none;     /* Blocks pull-to-refresh and chaining */
+  margin-top: auto;                /* KEY: Pushes itself up, forcing input to bottom */
+}
+
+.search-result-item {
+  padding: 12px 16px;         /* smaller but still touch‑safe */
+  border-bottom: 1px solid #eee;
+  cursor: pointer;
+  transition: background 0.15s;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.search-result-item:active {
+  background-color: #e3f2fd !important;
+}
+
+.search-result-item:hover {
+  background-color: #f5f9ff;
+}
+
+.search-result-name {
+  font-weight: 600;
+  font-size: 14.5px;          /* slightly smaller */
+  line-height: 1.4;
+}
+
+.search-result-details {
+  font-size: 12.5px;
+  color: #666;
+  margin-top: 3px;
+}
+
+.food-search-input-area {
+  padding: 12px 16px;
+  padding-bottom: calc(12px + env(safe-area-inset-bottom));
+  background: #f9f9f9;
+  border-top: 1px solid #ddd;
+  z-index: 10;
+  flex-shrink: 0;
+}
+
+#food-search-input {
+  width: 100%;
+  padding: 14px 16px;
+  font-size: 16px;
+  border: 1px solid #ccc;
+  border-radius: 12px;
+  box-sizing: border-box;
+  background: white;
+}
+
+#food-search-input:focus {
+  outline: none;
+  border-color: #0078D4;
+  box-shadow: 0 0 0 3px rgba(0,120,212,0.25);
+}
+
+/* Footer buttons */
+.nutrition-footer {
+  text-align: center;
+  margin-top: 15px;
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+}
+
+.nutrition-footer button {
+  padding: 10px 20px;
+  background-color: #0078D4;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  flex: 1;
+  max-width: 180px;
+}
+
+#food-search-btn {
+  background-color: #28a745;
+}
+
+#food-search-btn:hover {
+  background-color: #218838;
+}
+</style>
+
+<script>
+// ─────────────────────────────────────────────────────────────────
+// LOG HISTORY DIALOG: Edit consumed items and add activities
+// ─────────────────────────────────────────────────────────────────
+document.addEventListener('DOMContentLoaded', function() {
+  const kcalSection = document.querySelector('.kcal-grid');
+  const logDialog = document.getElementById('log-history-dialog');
+  const closeBtn = document.getElementById('log-history-close');
+  const saveBtn = document.getElementById('log-history-save');
+  const itemsContainer = document.getElementById('consumed-items-list');
+  let currentItems = [];
+
+  // Open dialog on kcal section click
+  kcalSection.style.cursor = 'pointer';
+  kcalSection.addEventListener('click', () => {
+    logDialog.style.display = 'flex';
+    loadConsumedItems();
+    switchTab('items');
+  });
+
+  // Close dialog
+  closeBtn.addEventListener('click', () => {
+    logDialog.style.display = 'none';
+  });
+
+  // Close on background click
+  logDialog.addEventListener('click', (e) => {
+    if (e.target === logDialog) {
+      logDialog.style.display = 'none';
+    }
+  });
+
+  // Tab switching
+  document.querySelectorAll('.log-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      document.querySelectorAll('.log-tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.log-tab-pane').forEach(p => p.classList.remove('active'));
+      tab.classList.add('active');
+      document.getElementById('tab-' + tab.dataset.tab).classList.add('active');
+    });
+  });
+
+  function switchTab(tabName) {
+    document.querySelector(`.log-tab[data-tab="${tabName}"]`).click();
+  }
+
+  // Load consumed items
+  async function loadConsumedItems() {
+    try {
+      const res = await fetch('/nutrition/today/items');
+      currentItems = await res.json();
+
+      if (!Array.isArray(currentItems) || currentItems.length === 0) {
+        itemsContainer.innerHTML = '<p style="text-align:center; color:#888;">No items logged today.</p>';
+        return;
+      }
+
+      itemsContainer.innerHTML = currentItems.map(item => `
+        <div class="consumed-item" data-id="${item.id}">
+          <div class="consumed-item-name">${item.product_name}</div>
+          <input type="number" value="${item.quantity_consumed}" min="0" step="1">
+          <button class="remove-item-btn" title="Remove">×</button>
+        </div>
+      `).join('');
+
+      // Attach remove and input handlers
+      itemsContainer.querySelectorAll('.remove-item-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          btn.parentElement.remove();
+        });
+      });
+
+    } catch (err) {
+      itemsContainer.innerHTML = '<p style="text-align:center; color:red;">Failed to load items.</p>';
+    }
+  }
+
+  // Save changes
+    saveBtn.addEventListener('click', async () => {
+      const updatedItems = [];
+      const remainingElements = itemsContainer.querySelectorAll('.consumed-item');
+
+      remainingElements.forEach(el => {
+        const id = parseInt(el.dataset.id);
+        const quantityInput = el.querySelector('input');
+        const quantity = parseInt(quantityInput.value) || 0;
+
+        if (quantity > 0) {
+          updatedItems.push({ id, quantity_consumed: quantity });
+        }
+        // quantity === 0 → omitted → will be deleted server-side
+      });
+
+      try {
+        const res = await fetch('/nutrition/today/items', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(updatedItems)
+        });
+
+        if (res.ok) {
+          // Success: close dialog and refresh totals
+          logDialog.style.display = 'none';
+
+          // Optional: nicer feedback instead of alert
+          // You could show a toast later, but for now:
+          console.log('Log updated successfully!');
+
+          // This will pull fresh summed totals from DB
+          await refreshNutritionDisplay();
+        } else {
+          const errorData = await res.json().catch(() => ({}));
+          alert('Failed to save changes: ' + (errorData.error || 'Server error'));
+        }
+      } catch (err) {
+        console.error('Network error during save:', err);
+        alert('Network error. Check your connection and try again.');
+      }
+    });
+});
+</script>
+
+<style>
+// ─────────────────────────────────────────────────────────────────
+// LOG HISTORY DIALOG: Edit consumed items and add activities
+// ─────────────────────────────────────────────────────────────────
+.log-history-dialog {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background-color: rgba(0, 0, 0, 0.6);
+  display: none;                  /* controlled by JS */
+  justify-content: center;        /* fallback */
+  align-items: center;            /* fallback */
+  z-index: 1200;
+  backdrop-filter: blur(4px);     /* nice touch */
+}
+
+.log-history-content {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: white;
+  border-radius: 12px;
+  width: 90%;
+  max-width: 500px;
+  max-height: 80vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+  animation: modalFadeIn 0.25s ease-out;
+}
+
+.log-history-content h3 {
+  margin: 0;
+  padding: 16px 20px;
+  text-align: center;
+  font-size: 18px;
+  border-bottom: 1px solid #eee;
+}
+
+.log-tabs {
+  display: flex;
+  background: #f8f9fa;
+}
+
+.log-tab {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  background: transparent;
+  font-size: 15px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.log-tab.active {
+  background: white;
+  font-weight: 600;
+  border-bottom: 3px solid #0078D4;
+}
+
+.log-tab-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+}
+
+.log-tab-pane {
+  display: none;
+}
+
+.log-tab-pane.active {
+  display: block;
+}
+
+.consumed-item {
+  display: flex;
+  align-items: center;
+  padding: 12px;
+  border-bottom: 1px solid #eee;
+  gap: 12px;
+}
+
+.consumed-item-name {
+  flex: 1;
+  font-weight: 500;
+}
+
+.consumed-item input {
+  width: 70px;
+  padding: 6px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  text-align: center;
+}
+
+.remove-item-btn {
+  background: #dc3545;
+  color: white;
+  border: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  cursor: pointer;
+  font-size: 18px;
+  line-height: 1;
+}
+
+.activity-item {
+  padding: 14px;
+  border-bottom: 1px solid #eee;
+}
+
+.activity-name {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.activity-details {
+  color: #28a745;
+  font-size: 14px;
+}
+
+.log-history-footer {
+  display: flex;
+  justify-content: space-between;
+  padding: 16px;
+  border-top: 1px solid #eee;
+  background: #f8f9fa;
+}
+
+.log-history-footer button {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+#log-history-save {
+  background: #0078D4;
+  color: white;
+}
+
+#log-history-close {
+  background: #6c757d;
+  color: white;
+}
+</style>
+
+<script>
+// ─────────────────────────────────────────────────────────────────
+// LIVE UPDATE: Refresh all nutrition circles + numbers from server
+// ─────────────────────────────────────────────────────────────────
+async function refreshNutritionDisplay() {
+  try {
+    const [totalsRes, settingsRes] = await Promise.all([
+      fetch('/nutrition/today'),
+      fetch('/nutrition/settings')
+    ]);
+
+    const totals = await totalsRes.json();
+    const settings = await settingsRes.json();
+
+    const kcalConsumed = totals.kcal || 0;
+    const kcalAllowed = settings.kcal_allowed || 2000;
+
+    // Update text values
+    document.getElementById('kcal-intake').textContent = `${kcalConsumed} kcal`;
+    document.getElementById('kcal-left').textContent = `${kcalAllowed - kcalConsumed} kcal`;
+
+    document.getElementById('carbs-text').textContent = `${totals.carbs || 0} / ${settings.carbs_allowed || 250}g`;
+    document.getElementById('fat-text').textContent = `${totals.fat || 0} / ${settings.fat_allowed || 70}g`;
+    document.getElementById('protein-text').textContent = `${totals.protein || 0} / ${settings.protein_allowed || 100}g`;
+
+    // Update conic-gradient circles (optional but beautiful)
+    function updateCircle(id, used, total) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      const percent = total > 0 ? Math.min(100, (used / total) * 100) : 0;
+      el.style.background = `conic-gradient(#0078D4 0% ${percent}%, #eee ${percent}% 100%)`;
+    }
+
+    updateCircle('kcal-circle', kcalConsumed, kcalAllowed);
+    updateCircle('carbs-circle', totals.carbs || 0, settings.carbs_allowed || 250);
+    updateCircle('fat-circle', totals.fat || 0, settings.fat_allowed || 70);
+    updateCircle('protein-circle', totals.protein || 0, settings.protein_allowed || 100);
+
+  } catch (err) {
+    console.error("Failed to refresh nutrition display:", err);
+  }
+}
+</script>
+
+<script>
+// ─────────────────────────────────────────────────────────────────
+// Result dialogue
+// ─────────────────────────────────────────────────────────────────
+
+// ─────────────────────────────────────────────────────────────────
+// Helper: Recalculate serving/unit nutrition values
+// ─────────────────────────────────────────────────────────────────
+function updateServingValues() {
+  // Get base values directly as numbers
+  const totalQuantity = parseFloat(document.getElementById('scan-quantity').textContent) || 0;
+  const servingSize   = parseFloat(document.getElementById('scan-serving').textContent) || 0;
+  const productUnits  = parseFloat(document.getElementById('scan-product-quantity').textContent) || 0;
+
+  const kcal100    = parseFloat(document.getElementById('kcal-100').textContent) || 0;
+  const carbs100   = parseFloat(document.getElementById('carbs-100').textContent) || 0;
+  const fat100     = parseFloat(document.getElementById('fat-100').textContent) || 0;
+  const protein100 = parseFloat(document.getElementById('protein-100').textContent) || 0;
+
+  // Compute unit size (avoid divide-by-zero)
+  const unitSize = productUnits > 0 ? totalQuantity / productUnits : 0;
+
+  // Helper to format or fallback to '-'
+  const fmt = (val) => isNaN(val) || val === null || val === undefined ? '-' : val.toFixed(1);
+
+  // Update serving values (per serving = per 100g * (servingSize / 100))
+  document.getElementById('kcal-serving').textContent    = fmt(kcal100 * servingSize / 100);
+  document.getElementById('carbs-serving').textContent   = fmt(carbs100 * servingSize / 100);
+  document.getElementById('fat-serving').textContent     = fmt(fat100 * servingSize / 100);
+  document.getElementById('protein-serving').textContent = fmt(protein100 * servingSize / 100);
+
+  // Update unit values (per unit = per 100g * (unitSize / 100))
+  document.getElementById('kcal-unit').textContent    = fmt(kcal100 * unitSize / 100);
+  document.getElementById('carbs-unit').textContent   = fmt(carbs100 * unitSize / 100);
+  document.getElementById('fat-unit').textContent     = fmt(fat100 * unitSize / 100);
+  document.getElementById('protein-unit').textContent = fmt(protein100 * unitSize / 100);
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Make fields editable + auto-recalc when relevant fields change
+// ─────────────────────────────────────────────────────────────────
+function makeEditable(id) {
+  const el = document.getElementById(id);
+  el.style.cursor = 'pointer';
+  el.title = 'Click to edit';
+  el.addEventListener('click', () => {
+    let current = el.textContent.trim();
+    // If the field is just '-', treat it as empty
+    if (current === '-') {
+      current = '';
+    }
+    const newVal = prompt(`Edit ${id}`, current);
+    if (newVal !== null) {
+      el.textContent = newVal;
+      // Only recalc if this field affects derived values
+      const affectingFields = [
+        'scan-quantity', 'scan-serving', 'scan-product-quantity',
+        'kcal-100', 'carbs-100', 'fat-100', 'protein-100'
+      ];
+      if (affectingFields.includes(id)) {
+        updateServingValues();
+      }
+    }
+  });
+}
+
+// Attach editable behavior to key fields
+['scan-barcode','scan-product-name','scan-quantity','scan-serving','scan-product-quantity',
+ 'kcal-100','carbs-100','fat-100','protein-100'].forEach(makeEditable);
+
+// ─────────────────────────────────────────────────────────────────
+// Show scan result dialog and populate data
+// ─────────────────────────────────────────────────────────────────
+function showScanResult(data) {
+  const dialog = document.getElementById('scan-result-dialog');
+  dialog.style.display = 'flex';
+
+  // Row0: barcode or error
+  document.getElementById('scan-barcode').textContent = data.error
+    ? `Error: ${data.error}`
+    : `Barcode: ${data.barcode}`;
+
+  // Row1: product name
+  document.getElementById('scan-product-name').textContent = data.product_name || 'Unknown product';
+
+  // Row2: totals (already normalized numbers from backend)
+  document.getElementById('scan-quantity').textContent        = data.quantity ?? '-';
+  document.getElementById('scan-serving').textContent         = data.serving_size ?? '-';
+  document.getElementById('scan-product-quantity').textContent= data.product_quantity ?? '-';
+
+  // Nutriments (per 100g)
+  const n = data.nutriments || {};
+  document.getElementById('kcal-100').textContent    = n.energy_kcal_100g ?? '-';
+  document.getElementById('carbs-100').textContent   = n.carbohydrates_100g ?? '-';
+  document.getElementById('fat-100').textContent     = n.fat_100g ?? '-';
+  document.getElementById('protein-100').textContent = n.proteins_100g ?? '-';
+
+  // Initialize derived fields to '-' before calculation
+  ['kcal-serving','kcal-unit',
+   'carbs-serving','carbs-unit',
+   'fat-serving','fat-unit',
+   'protein-serving','protein-unit'].forEach(id => {
+    document.getElementById(id).textContent = '-';
+  });
+  updateServingValues();
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Dialog control buttons
+// ─────────────────────────────────────────────────────────────────
+document.getElementById('confirm-result').addEventListener('click', async () => {
+  // ──────────────────────
+  // Step 1: Send product data (now includes serving_size)
+  // ──────────────────────
+  const getTextOrNull = (id) => {
+    const val = document.getElementById(id).textContent.trim();
+    return val && val !== '-' && val !== '' ? val : null;
+  };
+
+  const getNumberOrNull = (id) => {
+    const val = parseFloat(document.getElementById(id).textContent) || 0;
+    return isNaN(val) || val === 0 ? null : val;
+  };
+
+  const productData = {
+    barcode: document.getElementById('scan-barcode').textContent.replace('Barcode: ', '').trim(),
+    product_name: document.getElementById('scan-product-name').textContent.trim() || 'Unknown',
+    quantity: getTextOrNull('scan-quantity'),                    // e.g. "330 g"
+    serving_size: getTextOrNull('scan-serving'),
+    product_quantity: getTextOrNull('scan-product-quantity'),    // e.g. "1" or "12"
+    nutriments: {
+      energy_kcal_100g: getNumberOrNull('kcal-100'),
+      carbohydrates_100g: getNumberOrNull('carbs-100'),
+      fat_100g: getNumberOrNull('fat-100'),
+      proteins_100g: getNumberOrNull('protein-100'),
+    }
+  };
+
+  const step1 = await fetch('/nutrition/product', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(productData)
+  });
+
+  if (!step1.ok) {
+    const err = await step1.json();
+    alert('Failed to send product: ' + (err.error || 'unknown'));
+    return;
+  }
+
+  // ──────────────────────
+  // Step 2: Send consumed values
+  // ──────────────────────
+  const totalGrams = parseFloat(document.getElementById('scan-quantity').textContent) || 0;
+  const unitsCount = parseFloat(document.getElementById('scan-product-quantity').textContent) || 1;
+  const gramsPerUnit = unitsCount > 0 ? totalGrams / unitsCount : 0;
+
+  const amountG = parseFloat(document.getElementById('amount-input').value) || 0;
+  const units   = parseFloat(document.getElementById('units-input').value) || 0;
+  const finalGrams = amountG > 0 ? amountG : (units * gramsPerUnit);
+
+  const consumed = {
+    product_name: document.getElementById('scan-product-name').textContent.trim(),
+    quantity_consumed: Math.round(finalGrams),  // always in grams/ml
+    kcal_consumed: parseFloat(document.getElementById('calc-kcal').textContent) || 0,
+    carbs_consumed: parseFloat(document.getElementById('calc-carbs').textContent) || 0,
+    fat_consumed: parseFloat(document.getElementById('calc-fat').textContent) || 0,
+    protein_consumed: parseFloat(document.getElementById('calc-protein').textContent) || 0,
+  };
+
+  const step2 = await fetch('/nutrition/log', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(consumed)
+  });
+
+  if (step2.ok) {
+    alert('Logged successfully!');
+    document.getElementById('scan-result-dialog').style.display = 'none';
+    refreshNutritionDisplay(); // Update circles
+  } else {
+    const err = await step2.json();
+    alert('Log failed: ' + (err.error || 'unknown'));
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────
+// Helper: Clear previous scan
+// ─────────────────────────────────────────────────────────────────
+function clearScanResult() {
+  [
+    'scan-barcode','scan-product-name','scan-quantity','scan-serving','scan-product-quantity',
+    'kcal-100','kcal-serving','kcal-unit',
+    'carbs-100','carbs-serving','carbs-unit',
+    'fat-100','fat-serving','fat-unit',
+    'protein-100','protein-serving','protein-unit'
+  ].forEach(id => {
+    document.getElementById(id).textContent = '';
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────
+// Calculated intake (Amount OR Units)
+// ─────────────────────────────────────────────────────────────────
+let lastChanged = null; // 'amount' or 'units'
+
+function calculateIntake() {
+  const amountInput = document.getElementById('amount-input');
+  const unitsInput  = document.getElementById('units-input');
+
+  const amount = parseFloat(amountInput.value) || 0;
+  const units  = parseFloat(unitsInput.value)  || 0;
+
+  // per 100g values (already numbers)
+  const kcal100    = parseFloat(document.getElementById('kcal-100').textContent)    || 0;
+  const carbs100   = parseFloat(document.getElementById('carbs-100').textContent)   || 0;
+  const fat100     = parseFloat(document.getElementById('fat-100').textContent)     || 0;
+  const protein100 = parseFloat(document.getElementById('protein-100').textContent) || 0;
+
+  // total quantity in grams (from product data)
+  const totalQuantity = parseFloat(document.getElementById('scan-quantity').textContent) || 0;
+  const productUnits  = parseFloat(document.getElementById('scan-product-quantity').textContent) || 0;
+  const gramsPerUnit  = productUnits > 0 ? totalQuantity / productUnits : 0;
+
+  let factor = 0;
+
+  if (lastChanged === 'amount' && amount > 0) {
+    factor = amount / 100;                     // amount is in grams → factor for per-100g values
+  } else if (lastChanged === 'units' && units > 0 && gramsPerUnit > 0) {
+    factor = (units * gramsPerUnit) / 100;     // units → grams → factor
+  } else if (amount > 0) {
+    // fallback when nothing has been marked as "last changed" yet
+    factor = amount / 100;
+    lastChanged = 'amount';
+  } else if (units > 0 && gramsPerUnit > 0) {
+    factor = (units * gramsPerUnit) / 100;
+    lastChanged = 'units';
+  }
+
+  const kcal    = kcal100    * factor;
+  const carbs   = carbs100   * factor;
+  const fat     = fat100     * factor;
+  const protein = protein100 * factor;
+
+  document.getElementById('calc-kcal').textContent     = Math.round(kcal);
+  document.getElementById('calc-carbs').textContent    = carbs.toFixed(1) + 'g';
+  document.getElementById('calc-fat').textContent      = fat.toFixed(1) + 'g';
+  document.getElementById('calc-protein').textContent  = protein.toFixed(1) + 'g';
+}
+
+// Input handlers – remember which field was changed last and clear the other when both are filled
+document.getElementById('amount-input').addEventListener('input', () => {
+  lastChanged = 'amount';
+  if (document.getElementById('units-input').value !== '') {
+    document.getElementById('units-input').value = '';
+  }
+  calculateIntake();
+});
+
+document.getElementById('units-input').addEventListener('input', () => {
+  lastChanged = 'units';
+  if (document.getElementById('amount-input').value !== '') {
+    document.getElementById('amount-input').value = '';
+  }
+  calculateIntake();
+});
+
+// Recalculate also when the base data changes (editable fields)
+const recalculateOnBaseChange = () => {
+  updateServingValues();
+  calculateIntake();
+};
+['scan-quantity','scan-product-quantity',
+ 'kcal-100','carbs-100','fat-100','protein-100'].forEach(id => {
+  document.getElementById(id).addEventListener('click', recalculateOnBaseChange);
+});
+
+// initial call when dialog is shown
+const originalShowScanResult = showScanResult;
+showScanResult = function(data) {
+  originalShowScanResult(data);
+  lastChanged = null;
+  document.getElementById('amount-input').value = '';
+  document.getElementById('units-input').value  = '';
+  calculateIntake();
+};
+
+// ─────────────────────────────────────────────────────────────────
+// Mobile-friendly: Push dialog up when keyboard opens (on input focus)
+// ─────────────────────────────────────────────────────────────────
+function adjustDialogForKeyboard() {
+  const dialog = document.getElementById('scan-result-dialog');
+  if (!dialog) return;
+
+  const inputs = document.querySelectorAll('#amount-input, #units-input');
+  const originalTop = dialog.style.top;
+  const originalTransform = dialog.style.transform;
+
+  const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+
+  function nudgeDialog() {
+    if (isMobile) {
+      // Push dialog higher so buttons are visible
+      dialog.style.top = '5%'; // smaller top offset than 10% for more lift
+      dialog.style.transform = 'translateY(0)';
+    }
+  }
+
+  inputs.forEach(input => {
+    input.addEventListener('focus', () => {
+      requestAnimationFrame(() => {
+        input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      });
+      nudgeDialog();
+    });
+
+    input.addEventListener('blur', () => {
+      setTimeout(() => {
+        if (document.activeElement !== input) {
+          dialog.style.top = originalTop || '';
+          dialog.style.transform = originalTransform || '';
+        }
+      }, 300);
+    });
+  });
+
+  // Extra: listen for viewport resize (keyboard open/close)
+  window.addEventListener('resize', () => {
+    const active = document.activeElement;
+    if (active && (active.id === 'amount-input' || active.id === 'units-input')) {
+      nudgeDialog();
+    }
+  });
+}
+
+document.addEventListener('DOMContentLoaded', adjustDialogForKeyboard);
+</script>
+
+<style>
+/* Result confirmation dialogue */
+.scan-result-dialog {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100%;
+  background-color: transparent;
+  display: block;
+  justify-content: center;
+  z-index: 1100;
+}
+
+.scan-result-content {
+  position: absolute;
+  top: 0%;   /* anchor near top */
+  left: 50%;
+  transform: translateX(-50%);
+
+  background: #fff;
+  padding: 20px;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 420px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  font-size: 14px;
+  box-sizing: border-box;
+  transition: transform 0.25s ease;
+}
+
+.scan-waiting {
+  font-size: 14px;
+  color: #555;
+  text-align: center;
+  margin: 10px 0;
+}
+
+.scan-result-header {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-weight: bold;
+}
+
+#scan-product-name {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  text-align: center;
+}
+
+.scan-result-table {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.scan-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  align-items: center;
+  min-height: 36px;
+}
+
+.scan-head,
+.scan-val {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 13px;
+  padding: 4px 6px;
+  box-sizing: border-box;
+}
+
+.scan-head {
+  font-weight: 600;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+}
+
+.scan-val {
+  cursor: pointer;
+  border-radius: 4px;
+  text-decoration: underline dotted transparent;
+}
+
+.scan-val:hover {
+  background-color: #f0f0f0;
+  text-decoration: underline dotted #aaa;
+}
+
+.scan-result-table hr {
+  border: none;
+  border-top: 1px solid #ddd;
+  margin: 6px 0;
+}
+
+.scan-result-footer {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 10px;
+}
+
+.scan-result-footer button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+#confirm-result {
+  background-color: #0078D4;
+  color: white;
+}
+
+#confirm-result:hover {
+  background-color: #005a9e;
+}
+
+#close-result-dialog {
+  background-color: #6c757d;
+  color: white;
+}
+
+#close-result-dialog:hover {
+  background-color: #545b62;
+}
+
+/* Totals header row */
+.scan-result-table .scan-row:first-child {
+  display: grid;
+  grid-template-columns: 33.3% 33.3% 33.3%;
+  text-align: center;
+}
+
+/* Totals value row */
+.scan-result-table .scan-row:nth-child(2) {
+  display: grid;
+  grid-template-columns: 33.3% 33.3% 33.3%;
+  text-align: center;
+}
+
+.scan-amount-units {
+  margin-top: 12px;
+  margin-bottom: 12px;
+  display: grid;
+  grid-template-columns: 50% 50%;
+  text-align: center;
+  gap: 8px;
+}
+
+.scan-amount-units .scan-row {
+  display: contents; /* let children align to grid columns */
+}
+
+.scan-amount-units .scan-head {
+  font-weight: 600;
+  padding: 6px;
+}
+
+.scan-amount-units .scan-input {
+  width: 80%;
+  margin: 0 auto;
+  padding: 6px;
+  font-size: 14px;
+  text-align: center;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+.scan-calculated-intake {
+  margin: 16px 0 8px 0;
+  padding: 10px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.calc-val {
+  font-weight: 600;
+  color: #0078D4;
+}
+</style>
 
 <script>
 // ─────────────────────────────────────────────────────────────────
@@ -149,6 +1472,7 @@ document.addEventListener('DOMContentLoaded', function() {
           document.getElementById("input-protein").value = protein_allowed;
         })
         .catch(err => console.error("Failed to load nutrition settings:", err));
+        refreshNutritionDisplay(); // update circles
     });
   }
 
@@ -195,9 +1519,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
     takePhotoBtn.disabled = true;
 
-    // Show result dialog immediately with waiting message
-    resultText.textContent = '⏳ Waiting for response…';
-    resultDialog.style.display = 'flex';
+    // Show waiting message
+    clearScanResult();
+    document.getElementById('scan-waiting').style.display = 'block';
+    document.getElementById('scan-result-dialog').style.display = 'flex';
 
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d');
@@ -221,37 +1546,34 @@ document.addEventListener('DOMContentLoaded', function() {
     canvas.width = cropWidthPx;
     canvas.height = cropHeightPx;
 
-    // ✅ Draw frame first while stream is active
+    // Draw frame first while stream is active
     ctx.drawImage(video, cropX, cropY, cropW, cropH, 0, 0, cropWidthPx, cropHeightPx);
 
     // Now stop the camera
     stopCamera();
 
     canvas.toBlob(blob => {
-      const fd = new FormData();
-      fd.append('file', blob, 'barcode.jpg');
+        const fd = new FormData();
+        fd.append('file', blob, 'barcode.jpg');
 
-      fetch('/nutrition/scan/', {
-        method: 'POST',
-        body: fd
-      })
-      .then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
-      .then(data => {
-        if (!data.code) throw new Error(data.error || 'No barcode detected');
-        resultText.textContent = `✅ Scanned barcode: ${data.code}`;
-      })
-      .catch(err => {
-        console.error('Scan failed:', err);
-        resultText.textContent = `❌ ${err.message || 'Scan failed'}`;
-      })
-      .finally(() => {
-        takePhotoBtn.disabled = false;
-      });
-    }, 'image/jpeg', 0.9);
-  });
+        fetch('/nutrition/scan/', { method: 'POST', body: fd })
+          .then(r => {
+            if (!r.ok) throw new Error(`HTTP ${r.status}`);
+            return r.json();
+          })
+          .then(data => {
+            document.getElementById('scan-waiting').style.display = 'none';
+            showScanResult(data);
+          })
+          .catch(err => {
+            document.getElementById('scan-waiting').style.display = 'none';
+            showScanResult({ error: err.message || 'Scan failed' });
+          })
+          .finally(() => {
+            takePhotoBtn.disabled = false;
+          });
+      }, 'image/jpeg', 0.9);
+    });
 
   // Close result dialog
   closeResultDialogBtn?.addEventListener('click', () => {
@@ -262,30 +1584,13 @@ document.addEventListener('DOMContentLoaded', function() {
 </script>
 
 <style>
-/* Result confirmation dialogue */
-.scan-result-dialog {
-  position: fixed;
-  top:0; left:0;
-  width:100%; height:100%;
-  background: rgba(0,0,0,0.6);
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  z-index:1000;
+.scan-waiting {
+  font-size: 14px;
+  color: #555;
+  text-align: center;
+  margin: 10px 0;
 }
-.scan-result-content {
-  background:#fff;
-  padding:20px;
-  border-radius:8px;
-  max-width:300px;
-  text-align:center;
-}
-.scan-result-buttons button {
-  margin-top:10px;
-}
-</style>
 
-<style>
 /* Scanner */
 .nutrition-scanner-overlay {
   display: none;
@@ -336,10 +1641,10 @@ document.addEventListener('DOMContentLoaded', function() {
   backdrop-filter: blur(4px);
 }
 
-/* Bottom button bar — safe from Android navigation bar */
+/* Bottom button bar */
 .scanner-bottom-bar {
   position: absolute;
-  bottom: 80px;           /* Much higher than before */
+  bottom: 80px;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
@@ -387,7 +1692,7 @@ document.addEventListener('DOMContentLoaded', function() {
   box-shadow: none;
 }
 
-/* Optional top-right close button (kept for muscle memory) */
+/* Top-right close button */
 #close-scanner-top {
   position: absolute;
   top: 16px;
@@ -403,67 +1708,76 @@ document.addEventListener('DOMContentLoaded', function() {
 </style>
 
 <script>
-  // ─────────────────────────────────────────────────────────────────
-  // User daily allowed kcal
-  // ─────────────────────────────────────────────────────────────────
+// ─────────────────────────────────────────────────────────────────
+// User daily allowed kcal
+// ─────────────────────────────────────────────────────────────────
 document.addEventListener("DOMContentLoaded", () => {
-  const openBtn = document.getElementById("open-nutri-settings");
   const dialog = document.getElementById("nutri-settings-dialog");
   const closeBtn = document.getElementById("close-nutri-settings");
   const saveBtn = document.getElementById("save-nutri-settings");
 
-  const kcalInput = document.getElementById("input-kcal");
-  const carbsInput = document.getElementById("input-carbs");
-  const fatInput = document.getElementById("input-fat");
-  const proteinInput = document.getElementById("input-protein");
-
-  openBtn.addEventListener("click", () => {
-    dialog.style.display = "flex";
-  });
-
-  closeBtn.addEventListener("click", () => {
-    dialog.style.display = "none";
-  });
-
-  kcalInput.addEventListener("input", () => {
-    const kcal = parseInt(kcalInput.value, 10);
-    if (!isNaN(kcal) && kcal > 0) {
-      // Macronutrient distribution: 50% carbs, 30% fat, 20% protein
-      const carbs = Math.round((kcal * 0.50) / 4);
-      const fat = Math.round((kcal * 0.30) / 9);
-      const protein = Math.round((kcal * 0.20) / 4);
-
-      carbsInput.value = carbs;
-      fatInput.value = fat;
-      proteinInput.value = protein;
+  // Use event delegation for the gear icon (works even if added later)
+  document.addEventListener("click", (e) => {
+    if (e.target.closest("#open-nutri-settings")) {
+      dialog.style.display = "flex";
     }
   });
 
-  saveBtn.addEventListener("click", () => {
-      const settings = {
-        kcal: parseInt(kcalInput.value, 10),
-        carbs: parseInt(carbsInput.value, 10),
-        fat: parseInt(fatInput.value, 10),
-        protein: parseInt(proteinInput.value, 10)
-      };
+  closeBtn?.addEventListener("click", () => {
+    dialog.style.display = "none";
+  });
 
-      // Update UI labels
-      document.getElementById("kcal-left").textContent = `${settings.kcal} kcal`;
-      document.getElementById("carbs-text").textContent = `0 / ${settings.carbs}g`;
-      document.getElementById("fat-text").textContent = `0 / ${settings.fat}g`;
-      document.getElementById("protein-text").textContent = `0 / ${settings.protein}g`;
+  saveBtn?.addEventListener("click", () => {
+    const kcalInput = document.getElementById("input-kcal");
+    const carbsInput = document.getElementById("input-carbs");
+    const fatInput = document.getElementById("input-fat");
+    const proteinInput = document.getElementById("input-protein");
 
-      // Send to backend
-      fetch("/nutrition/settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(settings)
-      }).then(res => {
-        if (!res.ok) console.error("Failed to save nutrition settings");
-      });
+    const settings = {
+      kcal: parseInt(kcalInput?.value, 10) || 2000,
+      carbs: parseInt(carbsInput?.value, 10) || 250,
+      fat: parseInt(fatInput?.value, 10) || 70,
+      protein: parseInt(proteinInput?.value, 10) || 100
+    };
 
+    // Update UI
+    document.getElementById("kcal-left").textContent = `${settings.kcal} kcal`;
+    document.getElementById("carbs-text").textContent = `0 / ${settings.carbs}g`;
+    document.getElementById("fat-text").textContent = `0 / ${settings.fat}g`;
+    document.getElementById("protein-text").textContent = `0 / ${settings.protein}g`;
+
+    // Save to backend (⚠️ your current code is missing fetch options/body)
+    fetch("/nutrition/settings", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(settings)
+    })
+    .then(res => {
+      if (!res.ok) throw new Error("Failed to save settings");
+      return res.json();
+    })
+    .then(() => {
       dialog.style.display = "none";
+      refreshNutritionDisplay(); // update circles with new goals
+    })
+    .catch(err => {
+      console.error("Save failed:", err);
+      alert("Failed to save nutrition goals.");
     });
+  });
+
+  // Auto-calc macros on kcal input (same as before)
+  document.getElementById("input-kcal")?.addEventListener("input", (e) => {
+    const kcal = parseInt(e.target.value, 10);
+    if (kcal > 0) {
+      const carbs = Math.round((kcal * 0.50) / 4);
+      const fat = Math.round((kcal * 0.30) / 9);
+      const protein = Math.round((kcal * 0.20) / 4);
+      document.getElementById("input-carbs").value = carbs;
+      document.getElementById("input-fat").value = fat;
+      document.getElementById("input-protein").value = protein;
+    }
+  });
 });
 </script>
 
@@ -628,7 +1942,8 @@ document.addEventListener("DOMContentLoaded", () => {
   background-color: rgba(0,0,0,0.6);
   display: flex;
   justify-content: center;
-  align-items: center;
+  align-items: flex-start;   /* align to top instead of full center */
+  padding-top: 10vh;         /* push it down a bit from the very top */
   z-index: 1100;
 }
 
@@ -636,8 +1951,8 @@ document.addEventListener("DOMContentLoaded", () => {
   background: white;
   padding: 20px;
   border-radius: 8px;
-  width: 90%;
-  max-width: 400px;
+  width: 45%;                /* roughly half of viewport width */
+  max-width: 220px;          /* cap the width for smaller screens */
   display: flex;
   flex-direction: column;
   gap: 12px;

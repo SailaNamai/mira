@@ -73,17 +73,11 @@ CREATE TABLE IF NOT EXISTS nutrition_items (
   quantity                  TEXT,                                -- how much product
   product_quantity          INT,                                 -- how many single items
   serving_size              TEXT,
-
   energy_kcal_100g          INT,
-  energy_kcal_serving       INT,
   carbohydrates_100g        INT,
-  carbohydrates_serving     INT,
   fat_100g                  INT,
-  fat_serving               INT,
   proteins_100g             INT,
-  proteins_serving          INT,
-
-  last_update TEXT DEFAULT (strftime('%Y-%m-%d at %H:%M','now','localtime')) -- timestamp of insertion, so we only query after n amount of days
+  last_update TEXT DEFAULT (strftime('%Y-%m-%d at %H:%M','now','localtime')) -- timestamp of insertion
 );
 
 -- Nutrition user values
@@ -98,9 +92,11 @@ CREATE TABLE IF NOT EXISTS nutrition_user_values (
 -- nutrition intake per day
 CREATE TABLE IF NOT EXISTS nutrition_intake (
   id                INTEGER PRIMARY KEY AUTOINCREMENT,
+  product_name      TEXT,
   the_date          TEXT DEFAULT (strftime('%Y-%m-%d', 'now')),
-  kcal_total        INT,
-  carbs_total       INT,
-  fat_total         INT,
-  protein_total     INT
+  quantity_consumed INT,
+  kcal_consumed     INT,
+  carbs_consumed    INT,
+  fat_consumed      INT,
+  protein_consumed  INT
 );

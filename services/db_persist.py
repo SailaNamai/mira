@@ -1,63 +1,93 @@
 # services.db_persist.py
 
+import sqlite3
 from services.db_access import write_connection, connect
-from datetime import datetime
+from datetime import datetime, date
 
-def update_package_item_count(barcode, package_item_count):
-    return
-
-def add_nutrition_intake(grams: float, nutriments: dict):
+def update_today_consumed_items(updated_items: list[dict], date_str: str = None) -> bool:
     """
-    Adds intake for today.
-    nutriments keys expected:
-      'energy_kcal_100g', 'carbohydrates_100g', 'fat_100g', 'proteins_100g'
+    Updates quantity and proportionally recalculates consumed macros.
+    Items not in updated_items are deleted.
     """
-    factor = grams / 100.0
-    kcal = round((nutriments.get('energy_kcal_100g') or 0) * factor)
-    carbs = round(((nutriments.get('carbohydrates_100g') or 0) * factor) * 10) / 10  # keep 1 decimal
-    fat = round(((nutriments.get('fat_100g') or 0) * factor) * 10) / 10
-    protein = round(((nutriments.get('proteins_100g') or 0) * factor) * 10) / 10
+    if date_str is None:
+        date_str = date.today().isoformat()
 
-    with write_connection() as conn:
-        cur = conn.cursor()
-        today = conn.execute("SELECT strftime('%Y-%m-%d', 'now')").fetchone()[0]
-
-        # Get current intake (could be NULL)
-        cur.execute("""
-            SELECT kcal_total, carbs_total, fat_total, protein_total
-            FROM nutrition_intake
-            WHERE the_date = ?
-        """, (today,))
-        row = cur.fetchone()
-
-        if row:
-            # Update
-            kcal += row[0] or 0
-            carbs += row[1] or 0
-            fat += row[2] or 0
-            protein += row[3] or 0
-
-            cur.execute("""
-                UPDATE nutrition_intake
-                SET kcal_total = ?, carbs_total = ?, fat_total = ?, protein_total = ?
+    try:
+        # Step 1: Fetch current items with full nutrient data
+        with connect(readonly=True) as conn:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute("""
+                SELECT id, quantity_consumed,
+                       kcal_consumed, carbs_consumed, fat_consumed, protein_consumed
+                FROM nutrition_intake
                 WHERE the_date = ?
-            """, (kcal, carbs, fat, protein, today))
-        else:
-            # Insert new
-            cur.execute("""
-                INSERT INTO nutrition_intake (the_date, kcal_total, carbs_total, fat_total, protein_total)
-                VALUES (?, ?, ?, ?, ?)
-            """, (today, kcal, carbs, fat, protein))
+            """, (date_str,)).fetchall()
 
-        conn.commit()
+            current_items = {
+                row["id"]: {
+                    "quantity_consumed": int(row["quantity_consumed"] or 0),
+                    "kcal_consumed": int(row["kcal_consumed"] or 0),
+                    "carbs_consumed": int(row["carbs_consumed"] or 0),
+                    "fat_consumed": int(row["fat_consumed"] or 0),
+                    "protein_consumed": int(row["protein_consumed"] or 0)
+                }
+                for row in rows
+            }
+            existing_ids = set(current_items.keys())
 
-        return {
-            "kcal_total": kcal,
-            "carbs_total": carbs,
-            "fat_total": fat,
-            "protein_total": protein,
-            "date": today
-        }
+        incoming_ids = {item["id"] for item in updated_items if "id" in item}
+        ids_to_delete = existing_ids - incoming_ids
+        ids_to_update = incoming_ids & existing_ids
+
+        with write_connection() as conn:
+            # Delete removed items
+            if ids_to_delete:
+                placeholders = ",".join("?" for _ in ids_to_delete)
+                conn.execute(f"DELETE FROM nutrition_intake WHERE id IN ({placeholders})", tuple(ids_to_delete))
+                print(f"[DB] Deleted {len(ids_to_delete)} item(s)")
+
+            # Update quantities + scale macros
+            for item in updated_items:
+                item_id = item["id"]
+                new_qty = int(item["quantity_consumed"])
+
+                if item_id not in current_items or new_qty <= 0:
+                    continue  # safety
+
+                old = current_items[item_id]
+                old_qty = old["quantity_consumed"]
+
+                if old_qty == 0:
+                    continue  # avoid divide by zero
+
+                ratio = new_qty / old_qty
+
+                conn.execute("""
+                    UPDATE nutrition_intake
+                    SET quantity_consumed = ?,
+                        kcal_consumed     = ROUND(? * ?),
+                        carbs_consumed    = ROUND(? * ?),
+                        fat_consumed      = ROUND(? * ?),
+                        protein_consumed  = ROUND(? * ?)
+                    WHERE id = ?
+                """, (
+                    new_qty,
+                    old["kcal_consumed"], ratio,
+                    old["carbs_consumed"], ratio,
+                    old["fat_consumed"], ratio,
+                    old["protein_consumed"], ratio,
+                    item_id
+                ))
+
+            print(f"[DB] Updated {len(ids_to_update)} item(s) with scaled macros")
+
+        return True
+
+    except Exception as e:
+        print(f"[DB] Failed to update consumed items with recalc: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
 
 def save_nutrition_user_values(data: dict):
     """
@@ -82,58 +112,149 @@ def save_nutrition_user_values(data: dict):
             ) VALUES (1, ?, ?, ?, ?)
         """, (kcal, carbs, fat, protein))
 
-def persist_nutri_item_values(nutri_data: dict) -> None:
+def persist_nutrition_intake(intake_data: dict, user_id: int = None) -> bool:
+    """
+    Logs consumption into nutrition_intake table.
+    Normalizes missing/empty/invalid values to 0 (as is standard in food DBs).
+    """
+    required = [
+        "product_name",
+        "quantity_consumed",
+        "kcal_consumed",
+        "carbs_consumed",
+        "fat_consumed",
+        "protein_consumed"
+    ]
+
+    # Check that the keys exist
+    if not all(k in intake_data for k in required):
+        print(f"[DB] Missing required fields for nutrition_intake: {intake_data}")
+        return False
+
+    # Helper: Normalize to 0 if None, empty, '-', or invalid
+    def safe_round(value):
+        if value is None or value == "" or value == "-":
+            return 0
+        try:
+            return round(float(value))
+        except (ValueError, TypeError):
+            return 0  # e.g. "abc" → 0
+
+    # Extract & normalize
+    product_name = intake_data["product_name"] or "Unknown"
+    quantity = max(0, safe_round(intake_data["quantity_consumed"]))
+    kcal     = max(0, safe_round(intake_data["kcal_consumed"]))
+    carbs    = max(0, safe_round(intake_data["carbs_consumed"]))
+    fat      = max(0, safe_round(intake_data["fat_consumed"]))
+    protein  = max(0, safe_round(intake_data["protein_consumed"]))
+
+    try:
+        with write_connection() as conn:
+            conn.execute("""
+                INSERT INTO nutrition_intake (
+                    product_name,
+                    the_date,
+                    quantity_consumed,
+                    kcal_consumed,
+                    carbs_consumed,
+                    fat_consumed,
+                    protein_consumed
+                ) VALUES (?, strftime('%Y-%m-%d', 'now'), ?, ?, ?, ?, ?)
+            """, (
+                product_name,
+                quantity,
+                kcal,
+                carbs,
+                fat,
+                protein
+            ))
+            conn.commit()
+
+        print(f"[Nutrition Intake] Logged: {product_name} | "
+              f"{quantity}g | {kcal}kcal | {protein}g protein")
+
+        return True
+
+    except Exception as e:
+        print(f"[DB] Failed to insert into nutrition_intake: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
+
+def persist_nutri_item(nutri_data: dict) -> None:
+    """
+    Insert new product or UPDATE existing one only if data differs.
+    Refreshes last_update on change.
+    """
     if not nutri_data or not nutri_data.get("barcode"):
         print("[DB] No valid nutrition data to persist.")
         return
 
     barcode = nutri_data["barcode"]
+    nutriments = nutri_data.get("nutriments", {})
+
+    # Values in the exact order of the SELECT below
+    new_values = (
+        nutri_data.get("product_name"),
+        nutri_data.get("quantity"),
+        nutri_data.get("serving_size"),
+        nutri_data.get("product_quantity"),
+        nutriments.get("energy_kcal_100g"),
+        nutriments.get("carbohydrates_100g"),
+        nutriments.get("fat_100g"),
+        nutriments.get("proteins_100g"),
+    )
 
     try:
         with write_connection() as conn:
-            # Check if barcode already exists
-            existing = conn.execute(
-                "SELECT 1 FROM nutrition_items WHERE barcode = ? LIMIT 1", (barcode,)
-            ).fetchone()
-            if existing:
-                print(f"[DB] Barcode already exists: {barcode}")
+            # 1. Fetch current stored data (excluding barcode and last_update)
+            current = conn.execute("""
+                SELECT product_name, quantity, serving_size, product_quantity,
+                       energy_kcal_100g, carbohydrates_100g, fat_100g, proteins_100g
+                FROM nutrition_items
+                WHERE barcode = ?
+            """, (barcode,)).fetchone()
+
+            # 2. If identical → skip entirely
+            if current and current == new_values:
+                print(f"[DB] Product {barcode} unchanged (last_update: {conn.execute('SELECT last_update FROM nutrition_items WHERE barcode = ?', (barcode,)).fetchone()[0]}). Skipping.")
                 return
 
-            fields = [
-                "barcode", "product_name", "quantity", "product_quantity", "serving_size",
-                "energy_kcal_100g", "energy_kcal_serving",
-                "carbohydrates_100g", "carbohydrates_serving",
-                "fat_100g", "fat_serving",
-                "proteins_100g", "proteins_serving"
-            ]
+            # 3. Either INSERT (new) or UPDATE (changed)
+            if current:
+                # UPDATE + refresh last_update
+                conn.execute("""
+                    UPDATE nutrition_items SET
+                        product_name = ?,
+                        quantity = ?,
+                        serving_size = ?,
+                        product_quantity = ?,
+                        energy_kcal_100g = ?,
+                        carbohydrates_100g = ?,
+                        fat_100g = ?,
+                        proteins_100g = ?,
+                        last_update = strftime('%Y-%m-%d at %H:%M','now','localtime')
+                    WHERE barcode = ?
+                """, (*new_values, barcode))
+                action = "updated"
+            else:
+                # INSERT new – last_update will use DEFAULT
+                conn.execute("""
+                    INSERT INTO nutrition_items (
+                        barcode, product_name, quantity, serving_size, product_quantity,
+                        energy_kcal_100g, carbohydrates_100g, fat_100g, proteins_100g
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                """, (barcode, *new_values))
+                action = "inserted"
 
-            nut = nutri_data.get("nutriments", {})
-            values = [
-                nutri_data.get("barcode"),
-                nutri_data.get("product_name"),
-                nutri_data.get("quantity"),
-                # product_quantity might be numeric in some sources; coerce if you want:
-                nutri_data.get("product_quantity"),
-                nutri_data.get("serving_size"),
-
-                # nutriments:
-                nut.get("energy_kcal_100g"),
-                nut.get("energy_kcal_serving"),
-                nut.get("carbohydrates_100g"),
-                nut.get("carbohydrates_serving"),
-                nut.get("fat_100g"),
-                nut.get("fat_serving"),
-                nut.get("proteins_100g"),
-                nut.get("proteins_serving"),
-            ]
-
-            placeholders = ", ".join(["?" for _ in fields])
-            query = f"INSERT INTO nutrition_items ({', '.join(fields)}) VALUES ({placeholders})"
-            conn.execute(query, values)
-            print(f"[DB] Nutrition data persisted for barcode: {barcode}")
+            conn.commit()
+            print(f"[DB] Product {barcode} {action}: {nutri_data.get('product_name')} "
+                  f"| last_update refreshed")
 
     except Exception as e:
-        print(f"[DB] Error persisting nutrition data: {e}")
+        print(f"[DB] Failed to persist nutrition item: {e}")
+        import traceback
+        traceback.print_exc()
 
 
 def save_settings(data: dict):

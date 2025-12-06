@@ -5,6 +5,52 @@ Driver Version: 580.105.08
 CUDA Version: 13.0
 ```  
 
+
+**Hardware**:
+<table>
+  <tr>
+    <td>
+      <table>
+        <thead>
+          <tr>
+            <th style="text-align:center">Minimum</th>
+            <th style="text-align:center">Recommended</th>
+            <th style="text-align:left">Comment</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td style="text-align:center">16GB VRAM</td>
+            <td style="text-align:center">More</td>
+            <td>16GB will leave about 4GB<br>for context window.</td>
+          </tr>
+          <tr>
+            <td style="text-align:center">50 TFLOPS</td>
+            <td style="text-align:center">Faster</td>
+            <td>Speed is king in our use case.</td>
+          </tr>
+          <tr>
+            <td style="text-align:center">32GB RAM</td>
+            <td style="text-align:center">More</td>
+            <td>Qwen3-VL@8B_Q6K(~9GB);<br>Vosk (~4GB); + context.</td>
+          </tr>
+          <tr>
+            <td style="text-align:center">8c/16t CPU</td>
+            <td style="text-align:center">Faster+More</td>
+            <td>VL is slow on CPU.</td>
+          </tr>
+        </tbody>
+      </table>
+    </td>
+    <td style="vertical-align:top; padding-left:20px;">
+      <img src="static/readme/hardware_settings.jpg" alt="hardware settings" width="250">
+    </td>
+  </tr>
+</table>
+
+**DO NOT** overload your VRAM. You'll crash with 'oom' and can either delete the DB (generates new on startup) or edit the settings manually.
+- TODO: Prevent insane user settings/recover from insane settings.
+
 ### **Clone the repo, then:**
 
 ### CUDA
@@ -30,10 +76,13 @@ Check success with
 Choose vosk-model-en-us-0.42-gigaspeech and extract to ```.../mira/static/vosk-model-en-us-0.42-gigaspeech.```
 
 ```https://alphacephei.com/vosk/models```
+Record a wake word ("please") and drop it into ```...mira/static/sounds/please.wav```
 
 Place XTTS-v2 in ```.../mira/static/xtts-v2.```
 
 ```https://huggingface.co/coqui/XTTS-v2```
+
+Can change voice by replacing ```.../mira/static/xtts-v2/samples/en-sample.wav```
 
 Any **non vl** Qwen3 model should work. I use Unsloth 8b at Q6K (use gguf).
 Smaller than 8b might not do well with intent recognition.
@@ -116,6 +165,7 @@ You can create a .desktop file for the QT window but **DO NOT** start Mira's sys
 - Always use a terminal to start Mira.
 
 ### (soft) Dependencies
+Cloudflare: Setting the web API requires much DIY (cloudflare tunnel, buy domain, file edits)
 LibreOffice: For file conversion.
-Clementine: For music.
-Chromium: For browser integration.
+Clementine: For music. Drop playlist into ```...mira/playlists```
+Chromium: For browser integration. Install extension from ```...mira/services/browser/chromium_extension``` with Chromium's ```dev mode``` enabled

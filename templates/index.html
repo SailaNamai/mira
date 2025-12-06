@@ -31,7 +31,34 @@
         updateVh();
     })();
   </script>
+  <script>
+  // Enhanced viewport height + force layout on keyboard changes
+  (function() {
+    const updateViewport = () => {
+      const vh = window.visualViewport ? window.visualViewport.height * 0.01 : window.innerHeight * 0.01;
+      document.documentElement.style.setProperty('--vh', `${vh}px`);
+
+      // Force reflow on any open bottom-anchored inputs
+      const inputArea = document.querySelector('.food-search-input-area');
+      if (inputArea) {
+        inputArea.style.display = 'none';
+        inputArea.offsetHeight; // trigger reflow
+        inputArea.style.display = '';
+      }
+    };
+
+    window.addEventListener('resize', updateViewport);
+    window.addEventListener('orientationchange', updateViewport);
+    if (window.visualViewport) {
+      window.visualViewport.addEventListener('resize', updateViewport);
+      window.visualViewport.addEventListener('scroll', updateViewport);
+    }
+
+    updateViewport();
+  })();
+  </script>
 </head>
+
 <body>
     <div class="chat-container">
         <header class="chat-header">

@@ -33,8 +33,8 @@ from services.config import HasAttachment, BASE_PATH, ALLOWED_KEYS, SECRET_KEY, 
 from services.mkcert import check_mkcert
 # DB
 from services.db_access import init_db
-from services.db_persist import save_settings, save_nutrition_user_values, update_package_item_count
-from services.db_get import get_settings, GetDB
+from services.db_persist import save_settings, save_nutrition_user_values, persist_nutri_item, persist_nutrition_intake, update_today_consumed_items
+from services.db_get import get_settings, GetDB, food_search
 # Cast to text
 from services.url_to_txt import save_url_text
 from services.file_to_txt import file_to_txt
@@ -53,7 +53,7 @@ from services.music import discover_playlists
 from services.smart_plugs import load_plugs_from_db
 # Barcode/Nutrition
 from services.llm_vl import scan_barcode
-from services.barcode_api import lookup_barcode
+from services.api_openfoodfacts import lookup_barcode
 
 ########################################################################################
 """###########################         Setup           ##############################"""
@@ -530,35 +530,100 @@ def upload_audio():
 @mira.route('/nutrition/scan/', methods=['POST'])
 def receive_barcode_image():
     image_path = BASE_PATH / "temp" / "barcode.jpeg"
-
     try:
         # 1. Check if a file was uploaded
         if 'file' not in request.files:
             return {"error": "No file part in request"}, 400
-
         file = request.files['file']
-
         # 2. Ensure a filename was provided (even if we ignore it)
         if file.filename == '':
             return {"error": "No selected file"}, 400
-
-        # 3. Save uploaded file as JPEG — overwrite existing
+        # 3. Save uploaded file as JPEG: overwrite existing
         file.save(image_path)
-
         print(f"[Barcode] Saved uploaded image to {image_path}")
-
         # 4. Scan the saved image
-        code = scan_barcode(str(image_path))  # assuming scan_barcode expects a str path
-
+        code = scan_barcode(str(image_path))  # scan_barcode expects a str path
         if not code:
             return {"error": "No barcode found in image"}, 400
-
         print(f"[Barcode] Determined as: {code}")
-        return {"code": code}
+        # 5. Check Barcode against local DB
+        product = GetDB.get_nutri_item(code)
+        if product: print(f"[Barcode] Retrieved product from local DB.")
+        # 6. Not found? Check online DB
+        if not product:
+            product = lookup_barcode(code)
+            if not product:
+                return {"error": f"No product found for barcode {code}"}, 404
+            else: print(f"[Barcode] Fetched product from OpenFoodFacts.")
+        # 7. Return product
+        return {
+            "barcode": code,
+            "product_name": product.get("product_name"),
+            "nutriments": product.get("nutriments", {}),
+            "quantity": product.get("quantity"),
+            "serving_size": product.get("serving_size"),
+            "product_quantity": product.get("product_quantity"),
+        }
 
     except Exception as e:
         print(f"[Barcode] Error: {e}")
         return {"error": str(e)}, 500
+
+# when we receive scanned (possibly edited) product data after barcode scan
+@mira.route('/nutrition/product', methods=['POST'])
+def receive_scanned_product():
+    """
+    Frontend calls this after a successful barcode scan and
+    the user has possibly edited some fields.
+    We store the (possibly edited) product temporarily in memory
+    so the next endpoint can calculate consumed values correctly.
+    """
+    data = request.get_json()
+
+    required_keys = ['barcode', 'product_name', 'quantity', 'serving_size', 'product_quantity',
+                     'nutriments']  # nutriments contains energy_kcal_100g, etc.
+
+    if not all(k in data for k in required_keys):
+        return {"error": "Missing required product fields"}, 400
+
+    # Store
+    persist_nutri_item(data)
+
+    print(f"[Nutrition] Received scanned product: {data['product_name']} ({data['barcode']})")
+    return jsonify({"message": "Product received successfully"}), 200
+
+# when we receive the actual intake
+@mira.route('/nutrition/log', methods=['POST'])
+def log_nutrition_intake():
+    """
+    Expected JSON payload:
+    {
+        "product_name": "PRODUCT",
+        "quantity_consumed": 330,           // in grams or ml (already converted)
+        "kcal_consumed": 0,
+        "carbs_consumed": 0,
+        "fat_consumed": 0,
+        "protein_consumed": 12.5
+    }
+    """
+    data = request.get_json()
+
+    required = ['product_name', 'quantity_consumed',
+                'kcal_consumed', 'carbs_consumed', 'fat_consumed', 'protein_consumed']
+    if not all(k in data for k in required):
+        return {"error": "Missing required intake fields"}, 400
+
+    # Store
+    persist_nutrition_intake(data)
+    success = True
+
+    if not success:
+        return {"error": "Failed to save to database"}, 500
+
+    print(f"[Nutrition] Logged intake: {data['product_name']}: "
+          f"{data['kcal_consumed']}kcal, {data['protein_consumed']}g protein")
+
+    return jsonify({"message": "Intake logged successfully"}), 200
 
 # when the user enters daily nutri intake
 @mira.route('/nutrition/settings', methods=['POST'])
@@ -572,35 +637,44 @@ def receive_nutrition_settings():
 @mira.route('/nutrition/settings', methods=['GET'])
 def get_nutrition_settings():
     values = GetDB.get_nutrition_user_values()
+    print(f"[Nutrition Settings] Loaded: {values}")
     return jsonify(values)
 
-# when the user consumes something and possibly updates the package quantity
-@mira.route('/nutrition/consume', methods=['POST'])
-def consume_nutrition():
-    data = request.get_json()
-    barcode = data.get('barcode')
-    grams = float(data.get('grams'))
-    if not barcode or not grams:
-        return jsonify({"error": "Missing 'barcode' or 'grams'"}), 400
+# get already consumed today.
+@mira.route('/nutrition/today', methods=['GET'])
+def get_today_totals():
+    totals = GetDB.get_today_nutrition_totals()
+    return jsonify(totals)
 
-    package_item_count = data.get('package_item_count')
-    if package_item_count is not None:
-        package_item_count = int(package_item_count)
-        # check db for package_item_count and update if necessary
-        update_package_item_count(barcode, package_item_count)
-        print(f"[Nutrition/Consume]: Updated Package Item Count to {package_item_count}")
-    print(f"[Nutrition/Consume]: Barcode: {barcode} Amount: {grams} ItemCount: {package_item_count}")
-    # calc nutri values based on grams consumed
+# get the items the user consumed today
+@mira.route('/nutrition/today/items', methods=['GET'])
+def get_today_items():
+    items = GetDB.get_today_consumed_items()
+    return jsonify(items)
 
-    # write consumption to DB
+# update/remove item that was consumed today
+@mira.route('/nutrition/today/items', methods=['POST'])
+def update_today_items():
+    data = request.get_json(silent=True) or []
+    if not isinstance(data, list):
+        return jsonify({"error": "Expected a list of items"}), 400
 
-    # return the total for today to the frontend
-    # today_actual = "kcal": row[0] or 0,"carbs": row[1] or 0,"fat": row[2] or 0,"protein": row[3] or 0
-    today_actual = GetDB.get_nutrition_intake_today()
-    if today_actual:
-        return today_actual
+    success = update_today_consumed_items(data)
+
+    if success:
+        return jsonify({"status": "ok"})
     else:
-        return jsonify({"error": "Internal server error"}), 500
+        return jsonify({"error": "Failed to update database"}), 500
+
+# when the user searches for food items
+@mira.route('/nutrition/search', methods=['GET'])
+def nutrition_search():
+    query = request.args.get('q', '').strip()
+    if not query or len(query) < 3:
+        return jsonify([])
+    items = food_search(query)
+    print(f"[Nutrition] Search result: {items}")
+    return jsonify(items)
 
 ########################################################################################
 """############################        System          ##############################"""
@@ -626,7 +700,7 @@ def check_access():
         return None
 
     if session.get('authenticated'):
-        print("[BeforeRequest] Authenticated.")
+        #print("[BeforeRequest] Authenticated.")
         return None
 
     print("[BeforeRequest] Refused unauthorized access.")

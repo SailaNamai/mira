@@ -1,5 +1,6 @@
-###
-
+### alpha 0.6.20251206
+- added nutrition tracker (now functional)
+- DB now updates to (possible) new schema, while preserving as much data as possible
 
 ### alpha 0.5.20251203
 - code cleaning and refactor

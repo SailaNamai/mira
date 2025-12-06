@@ -91,7 +91,34 @@ def scan_barcode(image_path: str) -> str | None:
     # Defensive parse: extract first long digit sequence
     match = re.search(r"\b\d{8,}\b", text)
     if match:
-        return match.group(0)
+        code = match.group(0)
+        if verify_barcode(code):
+            return code
+        else:
+            print(f"[VL] Invalid barcode format: {code}")
+            return None
 
     print(f"[VL] No barcode found in output: {text}")
     return None
+
+def verify_barcode(code: str) -> bool:
+    """
+    Verify barcode against common formats (UPC-A, EAN-13, EAN-8, ISBN-13).
+    Returns True if valid, False otherwise.
+    """
+    def check_digit_ean_upc(digits: str) -> bool:
+        # EAN/UPC checksum: sum of odd/even positions
+        total = sum(int(d) * (3 if i % 2 else 1) for i, d in enumerate(digits[:-1]))
+        check = (10 - (total % 10)) % 10
+        return check == int(digits[-1])
+
+    if len(code) == 12:  # UPC-A
+        return check_digit_ean_upc(code)
+    elif len(code) == 13:  # EAN-13 / ISBN-13
+        return check_digit_ean_upc(code)
+    elif len(code) == 8:  # EAN-8
+        return check_digit_ean_upc(code)
+    elif len(code) == 14:  # ITF-14
+        return check_digit_ean_upc(code)
+    else:
+        return False

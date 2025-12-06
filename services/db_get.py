@@ -1,7 +1,67 @@
 # services.db_get.py
 
-from services.db_access import connect
 import sqlite3
+import json
+from datetime import date
+from services.db_access import connect, BASE
+
+# Path to reduced USDA dataset
+REDUCED_FILE = BASE / "static" / "nutrition" / "FoundationFoods.json"
+
+# Load once at import
+with open(REDUCED_FILE, "r", encoding="utf-8") as f:
+    foods = json.load(f)
+
+def food_search(term: str):
+    results = []
+
+    # Local DB
+    with connect(readonly=True) as conn:
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            "SELECT * FROM nutrition_items WHERE product_name LIKE ? ORDER BY id DESC",
+            (f"%{term}%",)
+        ).fetchall()
+        for row in rows:
+            r = dict(row)
+            results.append({
+                "id": r["id"],
+                "barcode": r["barcode"],
+                "product_name": r["product_name"],
+                "quantity": r["quantity"],
+                "serving_size": r["serving_size"],
+                "product_quantity": r["product_quantity"],
+                "nutriments": {
+                    "energy_kcal_100g": r.get("energy_kcal_100g"),
+                    "carbohydrates_100g": r.get("carbohydrates_100g"),
+                    "fat_100g": r.get("fat_100g"),
+                    "proteins_100g": r.get("proteins_100g"),
+                }
+            })
+
+    # JSON dataset
+    term_lower = term.lower()
+    for food in foods:
+        desc = food.get("description", "").lower()
+        if term_lower in desc:
+            results.append({
+                "id": 0,
+                "barcode": None,
+                "product_name": food.get("description"),
+                "quantity": None,
+                "serving_size": None,
+                "product_quantity": None,
+                "nutriments": {
+                    "energy_kcal_100g": food.get("kcal_100g"),
+                    "carbohydrates_100g": food.get("carbs_100g"),
+                    "fat_100g": food.get("fat_100g"),
+                    "proteins_100g": food.get("protein_100g"),
+                }
+            })
+
+    # ID desc
+    results.sort(key=lambda r: r["id"], reverse=True)
+    return results
 
 def get_settings():
     # repopulate the settings-modal
@@ -116,19 +176,119 @@ class GetDB:
                 "nutriments": {
                     "energy_kcal_100g": raw.get("energy_kcal_100g"),
                     "energy_kcal_serving": raw.get("energy_kcal_serving"),
+                    "energy_kcal_unit": raw.get("energy_kcal_unit"),
                     "carbohydrates_100g": raw.get("carbohydrates_100g"),
-                    "carbohydrates_serving": raw.get("carbohydrates_serving"),
                     "fat_100g": raw.get("fat_100g"),
-                    "fat_serving": raw.get("fat_serving"),
                     "proteins_100g": raw.get("proteins_100g"),
-                    "proteins_serving": raw.get("proteins_serving"),
                 },
                 "quantity": raw.get("quantity"), # how many single items
                 "serving_size": raw.get("serving_size"),
-                "packaging_text": raw.get("packaging_text"),
                 "product_quantity": raw.get("product_quantity"), # how much product in total
-                "portion_description": raw.get("portion_description")
             }
+
+    @staticmethod
+    def get_today_nutrition_totals(date_str: str = None) -> dict:
+        """
+        Returns summed nutrition totals for a given date (defaults to today).
+        Only kcal, carbs, fat, protein — no individual rows or product names.
+
+        Example return:
+        {
+            "kcal": 2140,
+            "carbs": 282,
+            "fat": 78,
+            "protein": 134
+        }
+        """
+        if date_str is None:
+            # Today in YYYY-MM-DD format (matches your DB default)
+            date_str = date.today().isoformat()
+
+        try:
+            with connect(readonly=True) as conn:
+                conn.row_factory = sqlite3.Row
+                row = conn.execute("""
+                    SELECT 
+                        COALESCE(SUM(kcal_consumed), 0)     AS total_kcal,
+                        COALESCE(SUM(carbs_consumed), 0)    AS total_carbs,
+                        COALESCE(SUM(fat_consumed), 0)      AS total_fat,
+                        COALESCE(SUM(protein_consumed), 0)  AS total_protein
+                    FROM nutrition_intake
+                    WHERE the_date = ?
+                """, (date_str,)).fetchone()
+
+            totals = {
+                "kcal": int(row["total_kcal"]),
+                "carbs": int(row["total_carbs"]),
+                "fat": int(row["total_fat"]),
+                "protein": int(row["total_protein"])
+            }
+
+            print(f"[DB] Today ({date_str}) nutrition totals: {totals}")
+            return totals
+
+        except Exception as e:
+            print(f"[DB] Failed to get today nutrition totals: {e}")
+            import traceback
+            traceback.print_exc()
+            # Return zeros on error — UI stays safe
+            return {"kcal": 0, "carbs": 0, "fat": 0, "protein": 0}
+
+    @staticmethod
+    def get_today_consumed_items(date_str: str = None) -> list[dict]:
+        """
+        Returns the full list of individual items consumed today.
+        Used by the log history dialog to display and edit entries.
+
+        Expected return format:
+        [
+            {
+                "id": 1,
+                "product_name": "Banana",
+                "quantity_consumed": 150
+            },
+            {
+                "id": 2,
+                "product_name": "Whole Milk",
+                "quantity_consumed": 250
+            },
+            ...
+        ]
+        """
+        if date_str is None:
+            date_str = date.today().isoformat()  # YYYY-MM-DD
+
+        try:
+            with connect(readonly=True) as conn:
+                conn.row_factory = sqlite3.Row
+                rows = conn.execute("""
+                    SELECT 
+                        id,
+                        product_name,
+                        quantity_consumed
+                    FROM nutrition_intake
+                    WHERE the_date = ?
+                      AND quantity_consumed > 0  -- optional: hide zeroed entries
+                    ORDER BY id DESC
+                """, (date_str,)).fetchall()
+
+            items = [
+                {
+                    "id": int(row["id"]),
+                    "product_name": row["product_name"] or "Unknown Item",
+                    "quantity_consumed": int(row["quantity_consumed"])
+                }
+                for row in rows
+            ]
+
+            print(f"[DB] Loaded {len(items)} consumed items for {date_str}")
+            return items
+
+        except Exception as e:
+            print(f"[DB] Failed to get today's consumed items: {e}")
+            import traceback
+            traceback.print_exc()
+            return []  # Return empty list on error — UI shows "No items"
 
     @staticmethod
     def get_nutrition_user_values():
