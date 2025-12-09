@@ -1,5 +1,5 @@
 ### Frontend
-- Initially I thought HTML/JS would be good, but it's so annoying (mobile browsers suck, so does CSS, OSS level interference on scaling and sizing etc.)
+- Initially I thought HTML/JS would be good, but it's so annoying (mobile browsers suck, so does CSS, OS level interference on scaling and sizing etc.)
 - Write an actual app
 
 ### Backend
@@ -70,7 +70,7 @@ llama_perf_context_print:    graphs reused =          0
 
 ### Have it serving files in a NAS like fashion (not implemented)
 
-### Make the installation process so easy that people don't turn insane (not implemented)
+### ~~Make the installation process so easy that people don't turn insane (not implemented)~~
 
 ### **Web search**: 
   - **Dummy pipeline**: Gets results from DuckDuckGo but the converter struggles with the shitload of adds etc.
@@ -112,7 +112,6 @@ Clicking a link will pass the link_url, empty space on the page will pass the pa
 ### Cloudflare
 - Setting the web API requires much DIY (cloudflare tunnel, buy domain, file edits)
 - Have it manage the tunnel itself. Possibly just have the user drop the req. files to /mira/static/cloudflare
-
 
 ### Give control of heating units (TO-DO: seems to need integration with home assistant)
 - bought the hardware but didn't have time yet.

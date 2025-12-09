@@ -7,8 +7,8 @@ and extract fat, protein, carbs, kcal per 100g for ALL foods — including new o
 import json
 from pathlib import Path
 
-INPUT_FILE = Path("FoodData_Central_foundation_food.json")
-OUTPUT_FILE = Path("FoundationFoods.json")
+INPUT_FILE = Path("FoodData_Central_branded_food_json_2025-04-24.json")
+OUTPUT_FILE = Path("BrandedFoods.json")
 
 # Priority order for energy (kcal) – newer foods use 957/958, old ones use 208
 ENERGY_SOURCES = ["208", "958", "957"]   # kcal in that order of preference

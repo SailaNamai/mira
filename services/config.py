@@ -1,5 +1,6 @@
 # services.config.py
 
+import os
 import socket
 import sys, io
 from contextlib import contextmanager
@@ -13,6 +14,7 @@ from services.db_get import GetDB
 ########################################################################################
 BASE_PATH = Path(__file__).resolve().parent.parent
 PASSKEYS_PATH = BASE_PATH / "services" / "passkeys.py"
+TUNNEL_YAML = BASE_PATH / "tunnel_config.yml"
 DEBUG = True
 
 # Query for keys on first init
@@ -40,8 +42,8 @@ except ImportError:
 
         # Generate passkeys.py
         content = f'''"""
-Local authentication keys — NEVER COMMIT THIS FILE.
-Generated automatically by services/globals.py on first run.
+Local authentication keys: NEVER COMMIT THIS FILE.
+Generated automatically by services/globals.py on first run (when not in Docker).
 """
 
 ALLOWED_KEYS = {ALLOWED_KEYS}
@@ -53,17 +55,25 @@ SECRET_KEY = "{SECRET_KEY}"
 
 # Returns host IP
 def get_local_ip():
-    """Returns the local IP address of the machine."""
-    s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-    try:
-        # Doesn't need to be reachable—just used to determine the local IP
-        s.connect(("8.8.8.8", 80))
-        ip = s.getsockname()[0]
-    except Exception:
-        ip = "127.0.0.1"
-    finally:
-        s.close()
-    return ip
+    """Return host IP if running in Docker, else local machine IP."""
+    if os.getenv("IN_DOCKER", "").lower() == "true":
+        try:
+            # Works if you added extra_hosts: host.docker.internal:host-gateway
+            return socket.gethostbyname("host.docker.internal")
+        except Exception:
+            return "127.0.0.1"
+    else:
+        # Fallback: discover local IP by connecting to a public address
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        try:
+            s.connect(("8.8.8.8", 80))
+            ip = s.getsockname()[0]
+        except Exception:
+            ip = "127.0.0.1"
+        finally:
+            s.close()
+        return ip
+
 
 @contextmanager
 def suppress_stdout_stderr():

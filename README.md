@@ -13,7 +13,7 @@ A local, **voice-in**, **voice-out**, LLM-powered assistant, that actually integ
 - Scans barcodes, tracks nutrition, dietary goals and builds a trusted local DB. 
 - Controls smart plugs (Tasmota), Plays music, Handles shopping and to-do list, Searches Wikipedia, Gives (3-day) weather forecast, and more.
 
-It is **very** alpha and currently only suited to DIY enthusiasts.
+It is **very** alpha but now comes with a Dockerfile:
 - [CHANGELOG.md](CHANGELOG.md)  |  [INSTALL.md](INSTALL.md) (I'll help if asked).
 
 Check the (*outdated*, alpha2) **video demo**:

@@ -6,6 +6,7 @@
 ########################################################################################
 """############################     System imports     ##############################"""
 ########################################################################################
+import os
 import json
 import threading
 import webview
@@ -673,7 +674,7 @@ def nutrition_search():
     if not query or len(query) < 3:
         return jsonify([])
     items = food_search(query)
-    print(f"[Nutrition] Search result: {items}")
+    if items: print(f"[Nutrition] Returned search result")
     return jsonify(items)
 
 ########################################################################################
@@ -727,7 +728,7 @@ def run_https_flask():
     cert = BASE_PATH / "mira_cert.pem"
     key = BASE_PATH / "mira_key.pem"
     ssl_context = (cert, key)
-    socketio.run(mira, debug=True, use_reloader=False, host='0.0.0.0', port=5001, ssl_context=ssl_context)
+    socketio.run(mira, debug=True, use_reloader=False, host='0.0.0.0', port=5001, ssl_context=ssl_context, allow_unsafe_werkzeug=True)
 
 # local network for browser addon and for the cloudflare tunnel
 # tunnel explodes if it has to deal with https from this end
@@ -736,7 +737,7 @@ def run_https_flask():
 # journalctl -u cloudflared-mira-tunnel -f
 def run_http_flask():
     # we need fucking http only for the Chromium extension... and apparently for the cloudflare tunnel
-    socketio.run(mira, debug=True, use_reloader=False, host='0.0.0.0', port=5002)
+    socketio.run(mira, debug=True, use_reloader=False, host='0.0.0.0', port=5002, allow_unsafe_werkzeug=True)
 
 def set_qt_identity():
     app = QtWidgets.QApplication.instance()
@@ -765,72 +766,83 @@ if __name__ == '__main__':
     get_vosk_model()
     init_qwen_vl()
 
-    # Launch WebView using Qt backend
-    set_qt_identity()
+    # Only run the standalone window outside docker
+    if os.getenv("IN_DOCKER", "").lower() != "true":
+        # Launch WebView using Qt backend
+        set_qt_identity()
 
-    # Get the first allowed key
-    first_key = next(iter(ALLOWED_KEYS))
-    # Build the URL with the selected key and local ip
-    local_ip = get_local_ip()
-    url = f"https://{local_ip}:5001/login?token={first_key}"
+        # Get the first allowed key
+        first_key = next(iter(ALLOWED_KEYS))
+        # Build the URL with the selected key and local ip
+        local_ip = get_local_ip()
+        url = f"https://{local_ip}:5001/login?token={first_key}"
 
-    window = webview.create_window(
-        "Mira",
-        url,
-        width=400,
-        height=600,
-        resizable=True,
-        frameless=False,  # remove window frame (titlebar)
-        min_size=(300, 400),
-        transparent=True,
-    )
+        window = webview.create_window(
+            "Mira",
+            url,
+            width=400,
+            height=600,
+            resizable=True,
+            frameless=False,  # remove window frame (titlebar)
+            min_size=(300, 400),
+            transparent=True,
+        )
 
-    def configure():
-        w = window
+        def configure():
+            w = window
+            try:
+                top = w.gui.window()
+            except Exception:
+                top = None
+
+            if top is None:
+                # try again shortly if not ready
+                from PyQt6.QtCore import QTimer
+                QTimer.singleShot(100, configure)
+                return
+
+            # X11-specific transparency configuration
+            top.setWindowFlag(Qt.WindowType.FramelessWindowHint, False)
+            top.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+            top.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground, True)
+
+            # X11 specific: ensure compositing is enabled
+            top.setWindowOpacity(0.75)  # Matches CSS opacity
+
+            webview_widget = top.findChild(QtWidgets.QWidget, "QWebEngineView")
+            if webview_widget is None:
+                for child in top.findChildren(QtWidgets.QWidget):
+                    if child.metaObject().className().startswith("QWebEngine"):
+                        webview_widget = child
+                        break
+
+            if webview_widget is not None:
+                webview_widget.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
+                webview_widget.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground, True)
+
+                try:
+                    custom_page = CustomWebEnginePage(webview_widget)
+                    webview_widget.setPage(custom_page)
+                    custom_page.setBackgroundColor(QColor(0, 0, 0, 0))
+                except Exception as e:
+                    print(f"Transparency or certificate configuration error: {e}")
+
+                try:
+                    page = webview_widget.page()
+                    # Explicitly set transparent background
+                    page.setBackgroundColor(QColor(0, 0, 0, 0))
+                except Exception as e:
+                    print(f"Transparency configuration error: {e}")
+
+
+        # pass zero-arg callback
+        webview.start(gui='qt', debug=False, func=configure)
+    else:
+        print("[Docker] GUI disabled, Flask servers only.")
+        # keep alive so docker doesn't exit with code 0
+        stop_event = threading.Event()
         try:
-            top = w.gui.window()
-        except Exception:
-            top = None
-
-        if top is None:
-            # try again shortly if not ready
-            from PyQt6.QtCore import QTimer
-            QTimer.singleShot(100, configure)
-            return
-
-        # X11-specific transparency configuration
-        top.setWindowFlag(Qt.WindowType.FramelessWindowHint, False)
-        top.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
-        top.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground, True)
-
-        # X11 specific: ensure compositing is enabled
-        top.setWindowOpacity(0.75)  # Matches CSS opacity
-
-        webview_widget = top.findChild(QtWidgets.QWidget, "QWebEngineView")
-        if webview_widget is None:
-            for child in top.findChildren(QtWidgets.QWidget):
-                if child.metaObject().className().startswith("QWebEngine"):
-                    webview_widget = child
-                    break
-
-        if webview_widget is not None:
-            webview_widget.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground, True)
-            webview_widget.setAttribute(Qt.WidgetAttribute.WA_NoSystemBackground, True)
-
-            try:
-                custom_page = CustomWebEnginePage(webview_widget)
-                webview_widget.setPage(custom_page)
-                custom_page.setBackgroundColor(QColor(0, 0, 0, 0))
-            except Exception as e:
-                print(f"Transparency or certificate configuration error: {e}")
-
-            try:
-                page = webview_widget.page()
-                # Explicitly set transparent background
-                page.setBackgroundColor(QColor(0, 0, 0, 0))
-            except Exception as e:
-                print(f"Transparency configuration error: {e}")
-
-
-    # pass zero-arg callback
-    webview.start(gui='qt', debug=False, func=configure)
+            print("Container running. Press CTRL+C to exit.")
+            stop_event.wait()
+        except KeyboardInterrupt:
+            print("Shutting down container...")

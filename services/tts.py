@@ -17,6 +17,8 @@ speaker_embedding = None
 
 MODEL_DIR = BASE_PATH / "static" / "xtts-v2"
 REFERENCE_WAV = MODEL_DIR / "samples" / "en_sample.wav"
+CUSTOM_WAV = MODEL_DIR / "samples" / "custom_24k.wav"
+
 SAMPLE_RATE = 24000
 LANGUAGE = "en"
 
@@ -40,7 +42,8 @@ def init_tts():
         model.to("cpu")
 
     print("[XTTS] Extracting speaker latents...")
-    gpt_latent, speaker_embedding = model.get_conditioning_latents(audio_path=[REFERENCE_WAV])
+    audio_file = CUSTOM_WAV if CUSTOM_WAV.exists() else REFERENCE_WAV
+    gpt_latent, speaker_embedding = model.get_conditioning_latents(audio_path=[audio_file])
     print("[XTTS] Ready.")
 
 def voice_out(text, timestamp=None, output_dir=BASE_PATH / "static" / "temp"):

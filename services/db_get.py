@@ -6,11 +6,46 @@ from datetime import date
 from services.db_access import connect, BASE
 
 # Path to reduced USDA dataset
-REDUCED_FILE = BASE / "static" / "nutrition" / "FoundationFoods.json"
+REDUCED_FOUNDATION_FOODS = BASE / "static" / "nutrition" / "FoundationFoods.json"
+REDUCED_BRANDED_FOODS = BASE / "static" / "nutrition" / "BrandedFoods.json"
 
-# Load once at import
-with open(REDUCED_FILE, "r", encoding="utf-8") as f:
-    foods = json.load(f)
+# Load once at import, keep separate
+def _load_json(path):
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        return []
+    except json.JSONDecodeError as e:
+        print(f"Warning: could not parse {path}: {e}")
+        return []
+
+foundation_foods = _load_json(REDUCED_FOUNDATION_FOODS)
+branded_foods = _load_json(REDUCED_BRANDED_FOODS)
+
+# json search helper
+def _search_json(term: str, foods: list, source_id: int):
+    """Search a single JSON dataset and tag with source_id."""
+    results = []
+    term_lower = term.lower()
+    for food in foods:
+        desc = food.get("description", "").lower()
+        if term_lower in desc:
+            results.append({
+                "id": source_id,
+                "barcode": None,
+                "product_name": food.get("description"),
+                "quantity": None,
+                "serving_size": None,
+                "product_quantity": None,
+                "nutriments": {
+                    "energy_kcal_100g": food.get("kcal_100g"),
+                    "carbohydrates_100g": food.get("carbs_100g"),
+                    "fat_100g": food.get("fat_100g"),
+                    "proteins_100g": food.get("protein_100g"),
+                }
+            })
+    return results
 
 def food_search(term: str):
     results = []
@@ -25,7 +60,7 @@ def food_search(term: str):
         for row in rows:
             r = dict(row)
             results.append({
-                "id": r["id"],
+                "id": r["id"],  # keep DB IDs as-is
                 "barcode": r["barcode"],
                 "product_name": r["product_name"],
                 "quantity": r["quantity"],
@@ -39,28 +74,14 @@ def food_search(term: str):
                 }
             })
 
-    # JSON dataset
-    term_lower = term.lower()
-    for food in foods:
-        desc = food.get("description", "").lower()
-        if term_lower in desc:
-            results.append({
-                "id": 0,
-                "barcode": None,
-                "product_name": food.get("description"),
-                "quantity": None,
-                "serving_size": None,
-                "product_quantity": None,
-                "nutriments": {
-                    "energy_kcal_100g": food.get("kcal_100g"),
-                    "carbohydrates_100g": food.get("carbs_100g"),
-                    "fat_100g": food.get("fat_100g"),
-                    "proteins_100g": food.get("protein_100g"),
-                }
-            })
+    # JSON datasets separately
+    if foundation_foods: results.extend(_search_json(term, foundation_foods, source_id=0))
+    if branded_foods: results.extend(_search_json(term, branded_foods, source_id=-1))
 
-    # ID desc
-    results.sort(key=lambda r: r["id"], reverse=True)
+    # Sort by ID (DB entries first, then FoundationFoods, then BrandedFoods)
+    # DB entries have positive ID starting with 1, Foundation as 0, Branded as -1
+    # Frontend displays from highest to lowest ID: 1. DB, 2. FF, 3. BF
+    results.sort(key=lambda r: r["id"], reverse=False) # False=ASC, True=DSC
     return results
 
 def get_settings():

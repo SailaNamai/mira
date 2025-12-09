@@ -1,3 +1,7 @@
+### alpha 0.6.1.20251209
+- created Dockerfile for easy install
+- Minor code adjustments to accommodate containerization (ongoing probably)
+
 ### alpha 0.6.20251206
 - added nutrition tracker (now functional)
 - DB now updates to (possible) new schema, while preserving as much data as possible
