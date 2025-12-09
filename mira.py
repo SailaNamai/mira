@@ -747,6 +747,11 @@ def set_qt_identity():
     app.setWindowIcon(QtGui.QIcon("icon.png"))
 
 if __name__ == '__main__':
+
+
+    # various init
+    init_db()
+    check_mkcert()
     # Start Flask in a background thread
     # HTTPS server
     flask_thread = threading.Thread(target=run_https_flask, daemon=True)
@@ -755,9 +760,6 @@ if __name__ == '__main__':
     http_thread = threading.Thread(target=run_http_flask, daemon=True)
     http_thread.start()
 
-    # various init
-    init_db()
-    check_mkcert()
     init_qwen()
     ChatContext.chat_session = ChatSession()
     load_plugs_from_db()
