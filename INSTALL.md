@@ -17,9 +17,16 @@
     ./download.sh
     ```
 
-4. Then run the Dockerfile:
+4. Then run the Dockerfile (takes ~40 minutes **without** DL speed being reduced to 60kb/s):
     ```
     docker compose build --no-cache mira
+    ```
+    This container is huge. When you are hit by reduced bandwidth the build takes hours.
+    Make sure you have upwards of 100GB free space (final container is smaller). 
+ 
+    On iterative builds omit --no-cache
+    ```
+    docker compose build mira
     ```
 
 5. Create your passkeys:
@@ -89,6 +96,10 @@ Don't have Docker? [Read the docker-engine section](#install-docker-engine)
 **DO NOT** overload your VRAM on initial startup. You'll crash with 'oom' and can either delete the DB (generates new on startup) or edit the settings manually.
 
 ### (soft) Dependencies
+**Vosk** (Voice-in, Speech to Text):
+
+To reduce error rates, record a wake word ("please") and drop it into ```...mira/static/sounds/please.wav```
+
 **Cloudflare**: 
 
 You need to buy (any) domain, which costs only a couple of currency units per year.
