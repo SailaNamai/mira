@@ -46,9 +46,9 @@ def write_connection(timeout=15):
 ########################################################################################
 def create_backup() -> Path:
     """
-    Creates a backup of mira.db (and WAL/journal if present) in BASE.
+    Creates a backup of mira.db in BASE.
     Only backs up if mira.db exists.
-    Uses 'mira.db.bak' as primary name; if that exists, uses timestamped fallback.
+    Uses 'mira.db.bak' as primary name; if that exists.
     Returns path to the main backup file (e.g., mira.db.bak).
     """
     if not DB_PATH.exists():
@@ -67,20 +67,11 @@ def create_backup() -> Path:
     print(f"[DB] Backing up database to: {bak_path}")
     shutil.copy2(DB_PATH, bak_path)
 
-    # Also copy WAL/SHM if present (critical for consistency in WAL mode)
-    for suffix in [".db-wal", ".db-shm"]:
-        src = DB_PATH.with_suffix(suffix)
-        if src.exists():
-            dst = bak_path.with_suffix(suffix.replace(".db", ""))
-            shutil.copy2(src, dst)
-            print(f"[DB] Copied: {dst.name}")
-
     return bak_path
 
 def _strip_sql_comments(sql: str) -> str:
     """
     Remove SQL comments (-- to end of line) and normalize whitespace.
-    Does NOT handle /* */ (you don’t use them).
     """
     # Remove -- comments (but preserve ' inside strings like 'now','localtime')
     no_comments = re.sub(r'--.*$', '', sql, flags=re.MULTILINE)
@@ -113,7 +104,6 @@ def _extract_column_names_from_create(create_sql: str) -> List[str]:
     """
     Extract column names from a CREATE TABLE (name TYPE ...) statement.
     Handles DEFAULT(...), CHECK(...), PRIMARY KEY(...), etc.
-    Assumes comments already stripped.
     """
     # Extract body between first '(' and last ')'
     match = re.search(r'\((.*)\);?$', create_sql.strip(), re.DOTALL)

@@ -1,11 +1,9 @@
 # services.url_to_txt.py
 
-import subprocess
 import trafilatura
 from services.config import BASE_PATH
 from services.llm_chat import count_tokens
 output = BASE_PATH / "temp" / "output.txt"
-SCRIPT_PATH = BASE_PATH / "services" / "helper_extract_worker.py"
 
 def save_url_text(url):
     downloaded = trafilatura.fetch_url(url)
@@ -80,28 +78,26 @@ def save_multiple_urls_text(url_list_str, max_success=5):
         except Exception as e:
             print(f"[Write] Failed to write output.txt: {e}")
 
+
 def safe_extract(url):
     try:
-        result = subprocess.run(
-            ["python3", str(SCRIPT_PATH), url],
-            capture_output=True,
-            text=True,
-            timeout=5
-        )
-    except subprocess.TimeoutExpired:
-        print(f"[Timeout] {url}")
-        return None
+        downloaded = trafilatura.fetch_url(url)
+        if not downloaded:
+            print(f"[Download failed] {url}")
+            return None
 
-    output = result.stdout
-    if result.returncode != 0:
-        print(f"[Subprocess error] {url} (code {result.returncode})")
-        return None
+        text = trafilatura.extract(downloaded,
+                                   include_comments=False,
+                                   include_tables=True,
+                                   no_fallback=False)
+        if not text or len(text.strip()) < 20:
+            print(f"[No readable content] {url}")
+            return None
 
-    if not output or "\x00" in output or len(output.strip()) < 20:
-        print(f"[Corrupt output] {url}")
+        return text.strip()
+    except Exception as e:
+        print(f"[Extraction error] {url}: {str(e)}")
         return None
-
-    return output
 
 """
 # Sample URL to test

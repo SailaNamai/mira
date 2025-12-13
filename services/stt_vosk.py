@@ -1,3 +1,5 @@
+# services.stt_vosk.py
+
 from vosk import Model, KaldiRecognizer
 import wave
 import json
@@ -14,16 +16,17 @@ please_helper_path = BASE_PATH / "static" / "sounds" / "please.wav"
 sample_rate = 16000
 _model = None
 
+# init and hold in RAM
 def get_vosk_model():
     global _model
     if _model is None:
         model_path_str = str(vosk_model_path)
         if not os.path.exists(model_path_str):
-            raise ValueError(f"[STT] Vosk model path does not exist: {model_path_str}")
-        print("[STT] Loading Vosk model into memory...")
+            raise ValueError(f"[STT@Vosk] Path does not exist: {model_path_str}")
+        print("[STT@Vosk] Loading into memory...")
         _model = Model(model_path_str)
+        print("[STT@Vosk] Ready.")
     return _model
-
 
 def prepend_wake_audio(audio_path, wake_word="please"):
     """
@@ -38,7 +41,7 @@ def prepend_wake_audio(audio_path, wake_word="please"):
     wake_audio_path = BASE_PATH / "static" / "sounds" / f"{wake_word}.wav"
 
     if not wake_audio_path.exists():
-        print(f"[STT] Warning: wake word audio '{wake_word}.wav' not found. Skipping prepend.")
+        print(f"[STT@Vosk] Warning: wake word audio '{wake_word}.wav' not found.\n[STT@Vosk] Warning: Skipping prepend.")
         return str(audio_path), None, {"word": None, "duration": 0.0}
 
     # Get duration of wake word audio (to know how much to trim later)
@@ -48,7 +51,7 @@ def prepend_wake_audio(audio_path, wake_word="please"):
             rate = wf.getframerate()
             wake_duration = frames / float(rate)
     except Exception as e:
-        print(f"[STT] Failed to read wake audio duration: {e}. Falling back.")
+        print(f"[STT@Vosk] Failed to read wake audio duration: {e}.")
         return str(audio_path), None, {"word": None, "duration": 0.0}
 
     temp_dir = tempfile.mkdtemp()
@@ -69,25 +72,25 @@ def prepend_wake_audio(audio_path, wake_word="please"):
 
     try:
         subprocess.run(cmd, capture_output=True, text=True, check=True)
-        print(f"[STT] Prepended '{wake_word}' ({wake_duration:.2f}s) → {merged_path}")
+        print(f"[STT@Vosk] Prepended '{wake_word}' ({wake_duration:.2f}s): {merged_path}")
         return merged_path, temp_dir, {"word": wake_word, "duration": wake_duration}
+
     except subprocess.CalledProcessError as e:
-        print(f"[STT] FFmpeg failed: {e.stderr}. Falling back to original.")
+        print(f"[STT@Vosk] FFmpeg failed: {e.stderr}. Falling back to original.")
         shutil.rmtree(temp_dir)
         return str(audio_path), None, {"word": None, "duration": 0.0}
 
-def transcribe_audio(audio_path, prepend_wake=True, wake_word="please"):
-    temp_dir = None
-    wake_info = {"word": None, "duration": 0.0}
-
-    if prepend_wake:
-        print(f"[STT] Prepending wake word '{wake_word}' to: {audio_path}")
-        audio_path, temp_dir, wake_info = prepend_wake_audio(audio_path, wake_word)
+def transcribe_audio(audio_path, wake_word="please"):
+    """
+    Turns voice-in into text and prepends the wake word.
+    """
+    print(f"[STT@Vosk] Prepending wake word '{wake_word}' to: {audio_path}")
+    audio_path, temp_dir, wake_info = prepend_wake_audio(audio_path, wake_word)
 
     try:
         wf = wave.open(str(audio_path), "rb")
         if wf.getnchannels() != 1 or wf.getsampwidth() != 2 or wf.getframerate() != sample_rate:
-            raise ValueError("[STT] Audio must be 16-bit mono WAV at 16kHz")
+            raise ValueError("[STT@Vosk] Audio must be 16-bit mono WAV at 16kHz")
 
         rec = KaldiRecognizer(get_vosk_model(), sample_rate)
         rec.SetWords(True)
@@ -111,7 +114,7 @@ def transcribe_audio(audio_path, prepend_wake=True, wake_word="please"):
         full_text = final_result.get("text", "").strip()
         duration = time.time() - start_time
 
-        # ===== TRIM WAKE WORD FROM TRANSCRIPTION =====
+        # Remove the wake word again
         trimmed_segments = segments
         trimmed_text = full_text
 
@@ -120,7 +123,7 @@ def transcribe_audio(audio_path, prepend_wake=True, wake_word="please"):
             # Try exact match on first word(s)
             # Vosk segments are per-word with "word" field
             trimmed_segments = []
-            consumed_time = 0.0
+
             wake_done = False
 
             for seg in segments:
@@ -129,21 +132,19 @@ def transcribe_audio(audio_path, prepend_wake=True, wake_word="please"):
                     # Candidate for wake word
                     token = seg["word"].lower().strip(".,!?\"'() ")
                     if token == word.lower():
-                        # Match! Skip this segment
-                        consumed_time = seg["end"]
+                        # Match
                         continue  # drop it
                     else:
-                        # Doesn't match — wake word may be multi-word or misrecognized
-                        # → fallback: keep all, or log
-                        print(f"[STT] Wake word mismatch: expected '{word}', got '{token}' at t={seg['start']:.2f}s")
-                        # Optional: stricter policy — break and keep all if first word ≠ wake_word?
+                        # Doesn't match
+                        print(f"[STT@Vosk] Wake word mismatch: expected '{word}', got '{token}' at t={seg['start']:.2f}s")
+
                 trimmed_segments.append(seg)
 
             # Rebuild text from remaining segments
             trimmed_text = " ".join(seg["word"] for seg in trimmed_segments).strip()
 
-        print(f"[STT] Transcription complete. Duration: {duration:.2f}s")
-        print(f"[STT] Original text: '{full_text}' \n Trimmed: '{trimmed_text}'")
+        print(f"[STT@Vosk] Transcription complete. Duration: {duration:.2f}s")
+        print(f"[STT@Vosk] Original text: '{full_text}' \n Trimmed: '{trimmed_text}'")
 
         return {
             "text": trimmed_text,
@@ -157,9 +158,9 @@ def transcribe_audio(audio_path, prepend_wake=True, wake_word="please"):
         }
 
     except Exception as e:
-        print(f"[STT] Error during transcription: {e}")
+        print(f"[STT@Vosk] Error during transcription: {e}")
         raise
     finally:
         if temp_dir:
             shutil.rmtree(temp_dir)
-            print(f"[STT] Cleaned up temp dir: {temp_dir}")
+            print(f"[STT@Vosk] Cleaned up temp dir: {temp_dir}")

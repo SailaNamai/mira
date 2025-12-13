@@ -29,8 +29,9 @@ def init_tts():
     config.load_json(os.path.join(MODEL_DIR, "config.json"))
 
     model = Xtts.init_from_config(config)
-    model.load_checkpoint(config, checkpoint_dir=MODEL_DIR, eval=True)
+    model.load_checkpoint(config, checkpoint_dir=MODEL_DIR, eval=True) # eval=True for inference, eval=False for training
 
+    # Load to CPU or GPU
     mode = GetDB.get_tts_mode()
     print(f"[XTTS] Initializing to {mode}...")
     if mode == "gpu":

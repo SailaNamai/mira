@@ -14,12 +14,12 @@ from services.db_get import GetDB
 ########################################################################################
 BASE_PATH = Path(__file__).resolve().parent.parent
 PASSKEYS_PATH = BASE_PATH / "services" / "passkeys.py"
-TUNNEL_YAML = BASE_PATH / "tunnel_config.yml"
 DEBUG = True
 
-# Query for keys on first init
+# Query for keys on first init; only for non-dockerized version.
+# docker just ignores the input. That's why we force users to set passwords during installation.
 try:
-    from .passkeys import ALLOWED_KEYS, SECRET_KEY
+    from .passkeys import ALLOWED_KEYS, SECRET_KEY # will probably crash when importing earlier (doesn't exist on GitHub), ignore PyCharm.
 except ImportError:
     if PASSKEYS_PATH.exists():
         # File exists but import failed
@@ -32,14 +32,13 @@ except ImportError:
     secret_input = input("[Authenticate] Enter SECRET_KEY (single string): ").strip()
 
     if not allowed_input or not secret_input:
-        print("[Authenticate] Empty input — using dummy keys (insecure!)")
+        print("[Authenticate] Empty input\n[Warn] using dummy keys (insecure!)")
         ALLOWED_KEYS = {"dummy_key_1", "dummy_key_2"}
         SECRET_KEY = "dummy_secret"
     else:
         # Parse & sanitize
         ALLOWED_KEYS = {k.strip() for k in allowed_input.split(",") if k.strip()}
         SECRET_KEY = secret_input
-
         # Generate passkeys.py
         content = f'''"""
 Local authentication keys: NEVER COMMIT THIS FILE.
@@ -74,10 +73,13 @@ def get_local_ip():
             s.close()
         return ip
 
-
 @contextmanager
 def suppress_stdout_stderr():
-    """Redirect stdout/stderr to a dummy buffer temporarily."""
+    """
+    Redirect stdout/stderr to a dummy buffer temporarily.
+    Is only active during .gguf load, added start/end prints instead.
+    # Disable the call to this function if a model crashes.
+    """
     old_stdout, old_stderr = sys.stdout, sys.stderr
     sys.stdout, sys.stderr = io.StringIO(), io.StringIO()
     try:
@@ -90,11 +92,11 @@ def suppress_stdout_stderr():
 ########################################################################################
 llm = None
 MODEL_PATH = BASE_PATH / "Qwen3-8B-UD-Q6_K_XL.gguf"
-MAX_CONTEXT = 8192
+MAX_CONTEXT = 8192 # TODO: Frontend setting and write to DB
 
 def init_qwen():
     """
-    Initialize Qwen3 into VRAM at Flask startup.
+    Initialize Qwen3 at startup.
     """
     mode = GetDB.get_llm_mode()
     print(f"[LLM] Model initializing on {mode}...")
@@ -105,7 +107,7 @@ def init_qwen():
 
     global llm
 
-    with suppress_stdout_stderr():
+    with suppress_stdout_stderr(): # remove this wrap for debug info if model crashes
         llm = Llama(
             model_path=str(MODEL_PATH),
             n_ctx=MAX_CONTEXT,
@@ -118,7 +120,7 @@ def init_qwen():
             frequency_penalty=0.0,
             presence_penalty=0.0,
             use_mmap=False,
-            verbose=True, # unwrap the with suppress for full log console
+            verbose=True,
             chat_format="chatml",
         )
     print("[LLM] Model initialized and warmed up.")
@@ -132,7 +134,7 @@ MMPROJ_PATH = BASE_PATH / "Qwen3-VL-8B-Instruct-mmproj-F16.gguf"
 
 def init_qwen_vl():
     """
-    Initialize Qwen3-VL into RAM at Flask startup.
+    Initialize Qwen3-VL at startup.
     """
     mode = GetDB.get_llm_vl_mode()
     print(f"[LLM VL] Model initializing on {mode}...")
@@ -140,12 +142,13 @@ def init_qwen_vl():
         gpu_layers = 0
     else:
         gpu_layers = -1
+
     global llm_vl
 
-    with suppress_stdout_stderr():
+    with suppress_stdout_stderr(): # remove this wrap when needing to debug the VL model
         llm_vl = Llama(
             model_path=str(MODEL_PATH_VL),
-            chat_handler=Qwen3VLChatHandler(
+            chat_handler=Qwen3VLChatHandler( # PyCharm complain is wrong (custom fork).
                 clip_model_path=str(MMPROJ_PATH),
                 force_reasoning=False,
             ),
@@ -153,7 +156,7 @@ def init_qwen_vl():
             n_ctx=2048,
             n_threads=16,
             swa_full=True,
-            verbose=True,  # unwrap the with suppress for full log console
+            verbose=True,
         )
     print("[LLM VL] Model initialized and warmed up.")
 
@@ -164,6 +167,7 @@ def init_qwen_vl():
 class ChatContext:
     chat_session = None
 
+# TODO: Turn into proper state handler and enable multi-user support
 class ChatState:
     intent = None
     user_msg = None
@@ -200,16 +204,13 @@ class HasAttachment:
         cls._is_picture = False
 
 class FileSupport:
-    # LibreOffice can turn to PDF
-    LIBRE_EXTENSIONS = {
-        ".doc", ".docx", ".odt", ".rtf",
-        ".xls", ".xlsx", ".ods", ".csv",
-        ".ppt", ".pptx", ".odp",
-        ".html", ".pdf", ".txt"
+    # rtf we convert with a small function ourselves, PDF by pdfminer.six
+    BASE_EXTENSIONS = {
+        ".rtf", ".pdf"
     }
     # Already text
     PLAIN_TEXT_EXTENSIONS = {
-        ".py", ".js", ".ts", ".css", ".html", ".md",
+        ".txt", ".py", ".js", ".ts", ".css", ".html", ".md",
         ".json", ".xml", ".yaml", ".yml", ".toml",
         ".sh", ".c", ".cpp", ".java", ".rb", ".go", ".rs"
     }
@@ -222,7 +223,7 @@ class FileSupport:
     def is_supported(cls, file_path: Path) -> bool:
         ext = file_path.suffix.lower()
         return (
-            ext in cls.LIBRE_EXTENSIONS
+            ext in cls.BASE_EXTENSIONS
             or ext in cls.PLAIN_TEXT_EXTENSIONS
             or ext in cls.IMAGE_EXTENSIONS
         )

@@ -3,8 +3,7 @@
 from services.config import HasAttachment, PLAYLIST_STEM, PLUGS, ChatContext
 from services.llm_chat import ChatSession
 from services.llm_intent import ask_listify
-from services.music import music_play, music_pause, music_next, music_previous, music_load
-from services.browser.chromium import chromium_start, chromium_terminate
+from services.media import media_play, media_pause, media_next, media_previous, playlist_load
 from services.shopping_list import new_shopping_list, append_shopping_list
 from services.to_do_list import new_to_do_list, append_to_do_list
 from services.smart_plugs import turn_on, turn_off
@@ -19,31 +18,23 @@ def command_lookup(command: str, user_msg: str) -> bool:
         return True
 
     # music
-    elif command == "play music":
-        music_play()
+    elif command in ("play music", "play media"):
+        media_play()
         return True
     elif command in ("pause playback", "stop playback"):
-        music_pause()
+        media_pause()
         return True
-    elif command == "next song":
-        music_next()
+    elif command in ("next song", "next episode"):
+        media_next()
         return True
-    elif command == "previous song":
-        music_previous()
+    elif command in ("previous song", "previous episode"):
+        media_previous()
         return True
     elif command.startswith("play "):
         stem = command.removeprefix("play ").strip()
         if stem in PLAYLIST_STEM:
-            music_load(command)
+            playlist_load(command)
             return True
-
-    # chromium
-    elif command == "open Chromium":
-        chromium_start()
-        return True
-    elif command == "close Chromium":
-        chromium_terminate()
-        return True
 
     # Lists
     elif command in ("new ShoppingList", "append ShoppingList", "new ToDoList", "append ToDoList"):

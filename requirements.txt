@@ -2,9 +2,9 @@ ijson
 pillow
 cryptography
 dateparser
-torchaudio
-torch
-torchcodec==0.8.0
+torchaudio==2.9.1
+torch==2.9.1
+torchcodec==0.9.0
 vosk
 ddgs
 trafilatura

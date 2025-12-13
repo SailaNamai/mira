@@ -12,7 +12,7 @@ def web_search(query: str, max_results: int = 25) -> str:
                 urls.append(href)
     return "\n".join(urls)
 
-def test_duckduckgo_search(query="python web scraping"):
+def test_duckduckgo_search(query="Manowar upcoming album release"):
     with DDGS() as ddgs:
         results = ddgs.text(query, max_results=5)
         for i, result in enumerate(results, 1):

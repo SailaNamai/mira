@@ -45,7 +45,7 @@ class ChatSession:
 
     def trim_history(self):
         """
-        Ensure history fits within N_CTX by keeping system prompt + newest messages.
+        Ensure history fits within N_CTX by keeping system prompt + the newest messages.
         """
         system_prompt = self.history[0]
         messages = self.history[1:]
@@ -74,6 +74,10 @@ class ChatSession:
         timestamp = weekday + ", " + time
 
         try:
+            """
+            Qwen3 supports think tag, I suppose models without support might react a little weird.
+            When others models implemented: Remove and decide on including.
+            """
             tag = "/think" if user_msg.strip().endswith("/think") else "/no think"
             print(f"[Mira] Using {tag}")
 
@@ -100,8 +104,9 @@ class ChatSession:
             # Remove the <think> block from the reply to get the pure response
             reply_pure = re.sub(r"<think>.*?</think>", "", reply, flags=re.DOTALL).strip()
 
-            # Persist full exchange (not trimmed) to DB
+            # Persist to DB
             chat_persist_db(self, user_msg, reply_pure, think)
+
             return reply_pure
 
         except Exception as e:

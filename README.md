@@ -11,7 +11,7 @@ A local, **voice-in**, **voice-out**, LLM-powered assistant, that actually integ
 - "Reads" pictures from the phone camera: *What is that plant in my garden?*
 - Integrates with Chromium on the host: *What is that article about? Does that source mention X?*
 - Scans barcodes, tracks nutrition, dietary goals and builds a trusted local DB. 
-- Controls smart plugs (Tasmota), Plays music, Handles shopping and to-do list, Searches Wikipedia, Gives (3-day) weather forecast, and more.
+- Controls smart plugs (Tasmota), Plays media, Handles shopping and to-do lists, Searches Wikipedia, Gives (3-day) weather forecast, and more.
 
 It is **very** alpha but now comes with a Dockerfile:
 - [CHANGELOG.md](CHANGELOG.md)  |  [INSTALL.md](INSTALL.md) (I'll help if asked).
@@ -114,7 +114,7 @@ Check the (*outdated*, alpha2) **video demo**:
 ### Chat
 Answers anything that is not a command.
 - Reads and discusses files:
-  - "Reads": ```.doc, .docx, .odt, .rtf, .xls, .xlsx, .ods, .csv, .ppt, .pptx, .odp, .html, .pdf, .txt .py, .js, .ts, .css, .md, .json, .xml, .yaml, .yml, .toml, .sh, .c, .cpp, .java, .rb, .go, .rs```
+  - "Reads": ```.rtf, .html, .pdf, .txt .py, .js, .ts, .css, .md, .json, .xml, .yaml, .yml, .toml, .sh, .c, .cpp, .java, .rb, .go, .rs```
   - "Sees": ```.png, .jpg, .jpeg, .gif, .bmp, .tiff, .svg, .webp```
 
 <table>
@@ -139,9 +139,10 @@ Answers anything that is not a command.
 ### Give control of Tasmota smart plugs
 - Enter name and IP in the web frontend.
 
-### Control music
-  - Dynamically plays any playlist that Clementine can open.
+### Control media (music, video, anything that VLC plays).
+  - Dynamically plays any playlist with VLC.
   - I still buy music, preferably directly from the artist: So, no Spotify support from me.
+  - Plays .m3u8 (TV streams etc. as long as your VLC can play them (possibly geolocated))
 
 ### Use for shopping and to-do list
 ![demo_list.jpg](static/readme/demo_list.jpg)

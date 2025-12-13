@@ -1,3 +1,11 @@
+### alpha 0.6.2.20251213
+- Various bugs squashed
+- cleaning, rewriting and commenting (ongoing)
+- Ongoing containerization: 
+  - Dropped LibreOffice file formats
+  - Music: Ditched Clementine for VLC; Now also plays videos etc.
+- No rebuild necessary
+
 ### alpha 0.6.1.20251209
 - created Dockerfile for easy install
 - Minor code adjustments to accommodate containerization (ongoing probably)
@@ -31,4 +39,4 @@
 - refactored chat+intent route into proper modular routes
   - multiple commands per query now possible
   - can now resolve commands + chat (turn the bathroom off and tell me a joke)
-  <img src="static/readme/multi_intent.jpg" alt="multi_intent" style="max-width:400px;">
+ 

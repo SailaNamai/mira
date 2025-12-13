@@ -22,7 +22,7 @@
     docker compose build --no-cache mira
     ```
     This container is huge. When you are hit by reduced bandwidth the build takes hours.
-    Make sure you have upwards of 100GB free space (final container is smaller). 
+    Make sure you have upwards of 100GB free space (final container is smaller at ~40GB). 
  
     On iterative builds omit --no-cache
     ```
@@ -110,14 +110,25 @@ If you make the tunnel a systemd service, make sure it retries for the app being
 
 For file conversion.
 
-**Clementine**:
+**VLC**:
 
-For music. Drop playlist into ```...mira/playlists```
+Using VLC to play music.
+
+From ```.../mira/``` do:
+```
+chmod +x update_compose_yml.sh
+./update_compose_yml.sh
+```
+
+In VLC go to Tools, Preferences and set Show Settings: All. Then go to Interface, Main Interfaces and check web. Expand Main Interfaces and go to LUA. Enter the password you chose earlier, click save and restart VLC.
+
+
+Drop playlist into ```...mira/playlists```
 
 **Chromium and the extension**:
 
 Install Chromium if you don't have it.
-Install extension from ```...mira/services/browser/chromium_extension``` with Chromium's ```dev mode``` enabled.
+Install extension from ```...mira/browser extensions/chromium_extension``` with Chromium's ```dev mode``` enabled.
 
 **Nutrition**: 
 

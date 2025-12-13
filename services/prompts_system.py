@@ -60,23 +60,15 @@ def get_system_prompt_intent():
     - If the user message is not fully matched through commands: Add an intent is chat json."""
 
     possible_commands = """\t- The **possible commands** are:
-        - new chat
-        - new conversation
-        - play music
-        - next song
-        - previous song
+        - new chat or new conversation
+        - play music or play media
+        - next song or next episode
+        - previous song or previous episode
         - pause playback
-        - open Chromium
-        - close Chromium
         - remove attachment
         - new ShoppingList or append ShoppingList
         - new ToDoList or append ToDoList
-        - get weather
-
-        - open Firefox
-        - close Firefox 
-        - open VLC
-        - close VLC"""
+        - get weather"""
 
     smart_plugs_str = "\n".join(
         f"on {name.capitalize()}\noff {name.capitalize()}" for name in PLUGS

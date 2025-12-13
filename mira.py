@@ -21,7 +21,6 @@ from PyQt6.QtWebEngineCore import QWebEnginePage, QWebEngineCertificateError
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for
 from flask_cors import CORS
 from flask_socketio import SocketIO, emit
-from datetime import datetime
 from threading import Thread
 from pathlib import Path
 
@@ -39,7 +38,7 @@ from services.db_get import get_settings, GetDB, food_search
 # Cast to text
 from services.url_to_txt import save_url_text
 from services.file_to_txt import file_to_txt
-from services.stt import get_vosk_model, transcribe_audio
+from services.stt_vosk import get_vosk_model, transcribe_audio
 # Intent
 from services.llm_intent import ask_intent, ask_wikipedia, ask_web
 # VL
@@ -50,7 +49,7 @@ from services.tts import init_tts, voice_out, split_into_chunks, clean_voice_chu
 # Command
 from services.command_library import command_lookup
 #from services.browser.chromium import chromium_print
-from services.music import discover_playlists
+from services.media import discover_playlists
 from services.smart_plugs import load_plugs_from_db
 # Barcode/Nutrition
 from services.llm_vl import scan_barcode
@@ -67,8 +66,10 @@ CORS(mira, resources={
 })
 mira.secret_key = SECRET_KEY
 
+# For the non-dockerized version
 class CustomWebEnginePage(QWebEnginePage):
-    def certificateError(self, error: QWebEngineCertificateError) -> bool:
+    @staticmethod
+    def certificate_error(error: QWebEngineCertificateError) -> bool:
         print(f"[SSL] Certificate error for {error.url().toString()}")
         if error.isOverridable():
             error.acceptCertificate()
@@ -77,7 +78,7 @@ class CustomWebEnginePage(QWebEnginePage):
 
 @socketio.on('connect')
 def handle_connect():
-    print('Client connected')
+    print("[Socket.io] Client connected")
 
 # serve frontend for the webview
 @mira.route("/")
@@ -87,35 +88,31 @@ def index():
 ########################################################################################
 """############################     Settings-Modal     ##############################"""
 ########################################################################################
-# load settings
+# load settings on modal open
 @mira.route("/api/settings", methods=["GET"])
 def load_settings():
+    print("[Settings modal] Loading.")
     return jsonify(get_settings())
 
-# persist settings
+# persist settings on save button
 @mira.route("/api/settings", methods=["POST"])
 def persist_settings():
     data = request.get_json()
     save_settings(data)
+    # refresh plugs
     load_plugs_from_db()
+    print("[Settings modal] Saved.")
     return jsonify({"status": "ok"})
 
 ########################################################################################
 """#########################  Attachment&BrowserPlugin ##############################"""
 ########################################################################################
-# receiving from picture.js
+# receiving from picture.js (phone camera)
 @mira.route('/picture', methods=['POST'])
 def picture():
     picture_path = BASE_PATH / "temp" / "picture.jpeg"
     file = request.files.get('picture')
-
-    if not file or file.filename == '':
-        return "No picture received", 400
-
-    # Save the picture
     file.save(picture_path)
-    print(f"[Picture] Saved to {picture_path}")
-
     # Set global attachment state
     HasAttachment.set_attachment(True)
     HasAttachment.set_picture(True)
@@ -125,10 +122,13 @@ def picture():
         "has_attachment": True,
         "type": "picture"
     })
-
+    print(f"[Picture] Attached: {picture_path}")
     return "Picture received and ready", 200
 
-# receiving chromium payload
+"""
+When we receive from the browser extension.
+Can be one of text, link, picture.
+"""
 @mira.route('/receive', methods=['POST'])
 def receive():
     data = request.get_json(silent=True) or {}
@@ -136,8 +136,7 @@ def receive():
 
     payload_type = data.get("type")
     content = data.get("content", "").strip()
-
-    print(f"[Receive] Type: {payload_type!r} | Content length: {len(content) if content else 0}")
+    print("[Receive] Content:", content, "\nAs type:", payload_type)
 
     # IMAGE
     if payload_type == "image_blob" and content:
@@ -145,28 +144,26 @@ def receive():
         print(f"[Receive] Received image_blob ({len(content)} base64 chars)")
 
         try:
+            # prepare for VL LLM
             image_data = base64.b64decode(content)
-
-            if len(image_data) < 100:
-                raise ValueError("Image data too small")
-
             img = Image.open(io.BytesIO(image_data))
             if img.mode in ("RGBA", "LA", "P"):
                 img = img.convert("RGB")
-
             img.save(picture_path, format="JPEG", quality=92)
-
             print(f"[Receive] Image saved from browser: {picture_path} ({picture_path.stat().st_size} bytes)")
 
+            # set flags
             HasAttachment.set_attachment(True)
             HasAttachment.set_picture(True)
 
+            # notify frontend
             socketio.emit('attachment_update', {
                 "has_attachment": True,
                 "type": "picture"
             })
             return jsonify({"status": "ok", "attachment": True}), 200
 
+        # Extension uses Chromium's native picture copy, which should be pretty reliable, still:
         except Exception as e:
             print(f"[Receive] Failed to process image_blob: {type(e).__name__}: {e}")
             return jsonify({"status": "error", "message": "Invalid image data"}), 400
@@ -174,7 +171,7 @@ def receive():
     # PAGE / LINK
     if payload_type in ("page", "link") and content:
         print(f"[Receive] Saving {payload_type}: {content}")
-        save_url_text(content)
+        save_url_text(content) # writes to output.txt
         HasAttachment.set_attachment(True)
         socketio.emit('attachment_update', {"has_attachment": True, "type": payload_type})
         return jsonify({"status": "ok", "attachment": True}), 200
@@ -189,20 +186,19 @@ def receive():
         socketio.emit('attachment_update', {"has_attachment": True, "type": "selection"})
         return jsonify({"status": "ok", "attachment": True}), 200
 
-    # FALLBACK
-    print(f"[Receive] Ignored payload → type={payload_type!r}, content={bool(content)}")
-    return jsonify({"status": "ignored"}), 200
+    return jsonify({"status": "ignored"}), 200 # Can't actually happen but PyCharm will complain
 
-# upload attachment
+"""
+Receiving upload through frontend button.
+Check against services/config.py FileSupport.
+"""
 @mira.route("/upload", methods=["POST"])
 def upload():
     if "file" not in request.files:
         return jsonify({"status": "no file received"}), 400
 
+    # Check if file type is supported
     file = request.files["file"]
-    if file.filename == "":
-        return jsonify({"status": "empty filename"}), 400
-
     filename_path = Path(file.filename)
     if not FileSupport.is_supported(filename_path):
         return jsonify({"status": "unsupported file type"}), 415
@@ -253,40 +249,38 @@ def remove_attachment():
 # persist frontend edits to shopping list
 @mira.route('/save_shopping_list', methods=['POST'])
 def save_shopping_list():
-    try:
-        items = request.get_json()
-        shopping_list_path = BASE_PATH / "static" / "lists" / "shopping_list.json"
-        # Write the updated list back to the file
-        with open(shopping_list_path, 'w', encoding='utf-8') as f:
-            json.dump(items, f, indent=2, ensure_ascii=False)
-        return jsonify(items), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    items = request.get_json()
+    shopping_list_path = BASE_PATH / "static" / "lists" / "shopping_list.json"
+    # Write the updated list back to the file
+    with open(shopping_list_path, 'w', encoding='utf-8') as f:
+        json.dump(items, f, indent=2, ensure_ascii=False)
+    return jsonify(items), 200
 
 # persist frontend edits to to-do list
 @mira.route('/save_todo_list', methods=['POST'])
 def save_todo_list():
     todo_list_path = BASE_PATH / "static" / "lists" / "to_do_list.json"
-    try:
-        items = request.get_json()
-        # Write the updated list back to the file
-        with open(todo_list_path, 'w', encoding='utf-8') as f:
-            json.dump(items, f, indent=2, ensure_ascii=False)
-        return jsonify(items), 200
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
+    items = request.get_json()
+    # Write the updated list back to the file
+    with open(todo_list_path, 'w', encoding='utf-8') as f:
+        json.dump(items, f, indent=2, ensure_ascii=False)
+    return jsonify(items), 200
 
 ########################################################################################
 """############################      Chat+Intent       ##############################"""
 ########################################################################################
-# starts new chat session
-@mira.route("/new_chat", methods=["POST"])
-def new_chat():
-    ChatContext.chat_session = ChatSession()
-    HasAttachment.set_attachment(False)
-    return jsonify({"status": "new session started"})
-
-# --- Hardcode route ---
+"""
+Data structure: {"intent": "chat", "command": "Pass to Mira.", "matched": user_msg}
+    - Intent can be action/chat. 
+    - Commands are in services/command_library.py and the intent prompt in services/prompts_system.py
+    - user_msg is split by the LLM (intent route) and set as user_msg field in each of n json objects
+        - That means we can resolve chat cleanly without confusing it with commands
+        - new data structure: {complete object}\n{complete object}\n...
+        
+ChatState is global, so the piping is simpler = 
+    - tunnel into all three (hardcode, intent, chat) for each complete object.
+    - dont have to constantly convert data when passing from front- to backend.
+"""
 @mira.route("/hardcode", methods=["POST"])
 def hardcode():
     data = request.get_json(silent=True) or {}
@@ -310,27 +304,29 @@ def hardcode():
     else:
         # no hardcode detected
         ChatState.intent = None
-        return jsonify({"reply": "No hardcode detected"})
+        return jsonify({"reply": "No hardcode detected"}) # frontend dives into /intent
 
-# --- Intent route ---
 @mira.route("/intent", methods=["POST"])
 def intent():
     user_msg = ChatState.user_msg or ""
-    # bypass if hardcode already set intent to chat
+    # Bypass if hardcode already set intent to chat
     if ChatState.intent and isinstance(ChatState.intent, dict) and ChatState.intent.get("intent") == "chat":
+        print("[Intent] Detected chat, bypassing.")
         return jsonify({"reply": "Bypass intent"})
 
     try:
-        raw_intent = ask_intent(user_msg)  # returns JSONL string
+        raw_intent = ask_intent(user_msg)  # returns JSONL string: {complete object}\n{complete object}\n...
         intents = []
         commands = []
 
+        # separate properly
         for line in raw_intent.strip().splitlines():
             if not line.strip():
                 continue
             obj = json.loads(line)
 
             # If obj is a list, iterate through its items
+            # TODO: Figure out why we need this duplication and unify
             if isinstance(obj, list):
                 for item in obj:
                     intents.append(item)
@@ -391,10 +387,11 @@ def intent():
     except Exception as e:
         return jsonify({"reply": f"Error parsing intent: {str(e)}"})
 
-# --- Chat route ---
+# Chat route
 @mira.route("/chat", methods=["POST"])
 def chat():
     # Unique case (voice out but not chat)
+    # So weather context doesn't taint the chat session
     if ChatState.weather:
         response = ChatState.weather
         ChatState.weather = None  # reset
@@ -407,11 +404,12 @@ def chat():
     if isinstance(intent, dict) and intent.get("intent") == "chat":
         # Prefer the matched field if present
         matched_text = intent.get("matched")
-
         if matched_text:
             user_msg = matched_text
 
         try:
+            # Channel to VL if an image is attached
+            # Small and probably even big VL models suck at longer text context
             if HasAttachment.has_attachment() and HasAttachment.is_picture():
                 img_path = BASE_PATH / "temp" / "picture.jpeg"
                 print(f"[VL] Reading attachment...")
@@ -423,6 +421,7 @@ def chat():
                 })
                 return jsonify({"reply": assistant_reply})
 
+            # Channel to txt model if we've converted an allowed input into .txt
             elif HasAttachment.has_attachment():
                 txt_path = BASE_PATH / "temp" / "output.txt"
                 try:
@@ -437,8 +436,10 @@ def chat():
                 })
                 HasAttachment.set_attachment(False)
             else:
+                # Is just regular chat without attachment = continue
                 combined_input = user_msg
 
+            # Pass to txt LLM
             assistant_reply = ChatContext.chat_session.ask(combined_input)
 
         except Exception as e:
@@ -449,35 +450,44 @@ def chat():
 
     else:
         # Action intents already handled in /intent
+        # Front end doesn't analyze. It just tunnels into all three routes, so we need this last else.
         return jsonify({"reply": ""})
 
+@mira.route("/new_chat", methods=["POST"])
+def new_chat():
+    ChatContext.chat_session = ChatSession()
+    HasAttachment.set_attachment(False)
+    print("[Chat] Started new chat session")
+    return jsonify({"status": "new session started"})
 
 ########################################################################################
 """############################         Voice          ##############################"""
 ########################################################################################
+# TODO: Should migrate to using socket.io.js to notify the front end of a chunk to play.
+#   - Frontend needs to have a playback bucket that it plays until empty (chunk generation is faster than voice playback).
+
 # determine voice chunk amount
+# Reasons to chunk: 1) Latency (how quickly the app can respond) 2) model restrictions
 @mira.route("/voice_chunks", methods=["POST"])
 def get_chunk_count():
+    # first return to the frontend how many chunks to expect, so that we don't constantly need to poll.
     text = request.json.get("text", "")
     clean_voice_chunks()
+    # Apply unique naming scheme with timestamp because mobile browsers will use stale data and not update the files.
     timestamp, chunks = split_into_chunks(text)
-    return jsonify({
+    return jsonify({ #Frontend tunnels back into route /voice_out
         "count": len(chunks),
         "timestamp": timestamp
     })
 
 @mira.route("/voice_out", methods=["POST"])
 def synth():
+    # re-extract
     data = request.json
     text = data.get("text", "")
     timestamp = data.get("timestamp") # ("%Y%m%d%H%M%S%f")
 
     try:
-        if not timestamp:
-            # Fallback to generating a new timestamp if not provided
-            _, chunks = split_into_chunks(text)
-            timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")
-
         # Use threading to start synthesis
         Thread(target=voice_out, args=(text, timestamp)).start()
         return jsonify({"status": "synthesis started", "timestamp": timestamp})
@@ -493,18 +503,6 @@ def upload_audio():
     wav_path = BASE_PATH / "static" / "temp" / "input.wav"
 
     audio.save(webm_path)
-    """
-    # Convert to MP3 using ffmpeg for faster_whisper
-    # faster_whisper wasn't/isn't updated to cuda13
-    try:
-        subprocess.run([
-            "ffmpeg", "-y", "-i", str(webm_path),
-            "-vn", "-ar", "44100", "-ac", "2", "-b:a", "192k", str(mp3_path)
-        ], check=True)
-    except subprocess.CalledProcessError as e:
-        print(f"[FFmpeg] Conversion failed: {e}")
-        return jsonify({"error": "Audio conversion failed"}), 500
-    """
     # Convert to WAV for Vosk (mono, 16kHz, 16-bit PCM)
     try:
         subprocess.run([
@@ -514,10 +512,6 @@ def upload_audio():
     except subprocess.CalledProcessError as e:
         print(f"[FFmpeg] WAV conversion failed: {e}")
         return jsonify({"error": "Audio conversion failed"}), 500
-
-    # Transcribe the MP3 instead of the original webm
-    #transcriber = WhisperTranscriber()
-    #result = transcriber.transcribe_audio(mp3_path)
 
     # Transcribe the WAV using Vosk
     result = transcribe_audio(wav_path)
@@ -532,32 +526,28 @@ def upload_audio():
 def receive_barcode_image():
     image_path = BASE_PATH / "temp" / "barcode.jpeg"
     try:
-        # 1. Check if a file was uploaded
-        if 'file' not in request.files:
-            return {"error": "No file part in request"}, 400
+        # 1. receive and write to disk
         file = request.files['file']
-        # 2. Ensure a filename was provided (even if we ignore it)
-        if file.filename == '':
-            return {"error": "No selected file"}, 400
-        # 3. Save uploaded file as JPEG: overwrite existing
         file.save(image_path)
         print(f"[Barcode] Saved uploaded image to {image_path}")
-        # 4. Scan the saved image
+        # 2. Scan the saved image
         code = scan_barcode(str(image_path))  # scan_barcode expects a str path
         if not code:
+            print(f"[Barcode] No barcode found in image")
             return {"error": "No barcode found in image"}, 400
         print(f"[Barcode] Determined as: {code}")
-        # 5. Check Barcode against local DB
+        # 3. Check Barcode against local DB
         product = GetDB.get_nutri_item(code)
         if product: print(f"[Barcode] Retrieved product from local DB.")
-        # 6. Not found? Check online DB
+        # 4. Not found? Check online DB
         if not product:
             product = lookup_barcode(code)
             if not product:
+                print(f"[Barcode] No product found at OpenFoodFacts with {code}.")
                 return {"error": f"No product found for barcode {code}"}, 404
             else: print(f"[Barcode] Fetched product from OpenFoodFacts.")
-        # 7. Return product
-        return {
+        # 5. Return product
+        return { # frontend returns to input state (user product verification and entry of amount consumed dialogue)
             "barcode": code,
             "product_name": product.get("product_name"),
             "nutriments": product.get("nutriments", {}),
@@ -565,33 +555,34 @@ def receive_barcode_image():
             "serving_size": product.get("serving_size"),
             "product_quantity": product.get("product_quantity"),
         }
-
     except Exception as e:
         print(f"[Barcode] Error: {e}")
         return {"error": str(e)}, 500
 
-# when we receive scanned (possibly edited) product data after barcode scan
+# when we receive product data after barcode scan
 @mira.route('/nutrition/product', methods=['POST'])
 def receive_scanned_product():
     """
-    Frontend calls this after a successful barcode scan and
-    the user has possibly edited some fields.
-    We store the (possibly edited) product temporarily in memory
-    so the next endpoint can calculate consumed values correctly.
+    Expected JSON payload:
+    {
+      "barcode": "Number",
+      "product_name": "Greek Yogurt",
+      "quantity": "500", -- normalized
+      "serving_size": "150", -- normalized
+      "product_quantity": "4",
+      "nutriments": {
+        "energy_kcal_100g": 59,
+        "protein_100g": 10.0,
+        "carbohydrates_100g": 3.6,
+        "fat_100g": 0.4,
+      }
+    }
+    :return:
     """
-    data = request.get_json()
-
-    required_keys = ['barcode', 'product_name', 'quantity', 'serving_size', 'product_quantity',
-                     'nutriments']  # nutriments contains energy_kcal_100g, etc.
-
-    if not all(k in data for k in required_keys):
-        return {"error": "Missing required product fields"}, 400
-
-    # Store
-    persist_nutri_item(data)
-
+    data = request.get_json() # Frontend sends valid json
+    persist_nutri_item(data) # Write to DB
     print(f"[Nutrition] Received scanned product: {data['product_name']} ({data['barcode']})")
-    return jsonify({"message": "Product received successfully"}), 200
+    return jsonify({"message": "Product received successfully"}), 200 # Frontend tunnels back into route nutrition/log
 
 # when we receive the actual intake
 @mira.route('/nutrition/log', methods=['POST'])
@@ -607,26 +598,13 @@ def log_nutrition_intake():
         "protein_consumed": 12.5
     }
     """
-    data = request.get_json()
-
-    required = ['product_name', 'quantity_consumed',
-                'kcal_consumed', 'carbs_consumed', 'fat_consumed', 'protein_consumed']
-    if not all(k in data for k in required):
-        return {"error": "Missing required intake fields"}, 400
-
-    # Store
-    persist_nutrition_intake(data)
-    success = True
-
-    if not success:
-        return {"error": "Failed to save to database"}, 500
-
+    data = request.get_json() # Frontend sends valid json
+    persist_nutrition_intake(data) # Write to DB
     print(f"[Nutrition] Logged intake: {data['product_name']}: "
           f"{data['kcal_consumed']}kcal, {data['protein_consumed']}g protein")
+    return jsonify({"message": "Intake logged successfully"}), 200 # frontend returns to input ready state
 
-    return jsonify({"message": "Intake logged successfully"}), 200
-
-# when the user enters daily nutri intake
+# when we enter daily nutri intake
 @mira.route('/nutrition/settings', methods=['POST'])
 def receive_nutrition_settings():
     data = request.get_json()
@@ -647,7 +625,7 @@ def get_today_totals():
     totals = GetDB.get_today_nutrition_totals()
     return jsonify(totals)
 
-# get the items the user consumed today
+# get the items consumed today
 @mira.route('/nutrition/today/items', methods=['GET'])
 def get_today_items():
     items = GetDB.get_today_consumed_items()
@@ -659,9 +637,7 @@ def update_today_items():
     data = request.get_json(silent=True) or []
     if not isinstance(data, list):
         return jsonify({"error": "Expected a list of items"}), 400
-
     success = update_today_consumed_items(data)
-
     if success:
         return jsonify({"status": "ok"})
     else:
@@ -670,9 +646,12 @@ def update_today_items():
 # when the user searches for food items
 @mira.route('/nutrition/search', methods=['GET'])
 def nutrition_search():
+    # Returns LocalDB as most salient, FoundationFoods next, and then BrandedFoods.
     query = request.args.get('q', '').strip()
+    # only begin live search at three letters entered.
     if not query or len(query) < 3:
         return jsonify([])
+
     items = food_search(query)
     if items: print(f"[Nutrition] Returned search result")
     return jsonify(items)
@@ -687,14 +666,14 @@ def login():
     if token in ALLOWED_KEYS:
         session['authenticated'] = True
         print("[Login] Successful.")
-        return redirect(url_for('index'))  # or wherever you want to land
+        return redirect(url_for('index'))
     print("[Login] Refused.")
     return jsonify({"error": "Unauthorized"}), 403
 
 # check user authentication
 @mira.before_request
 def check_access():
-    # Allow static, login, and /receive from localhost (for extension)
+    # Allow static, login, and /receive from localhost (for browser extension)
     if request.path.startswith("/static/") or request.path == "/login" or \
        (request.path == "/receive" and request.remote_addr in ["127.0.0.1", "::1"]):
         print(f"[BeforeRequest] Allowed: {request.path} from {request.remote_addr}")
@@ -714,8 +693,8 @@ def handle_attachment_status():
         "has_attachment": HasAttachment.has_attachment()
     })
 
-# flask subprocess
-# we need fucking ssl or the browser will not allow mic access from local network
+# Flask subprocess
+# We need ssl or the browser will not allow mic access from local network
 def run_https_flask():
     # Suppress /attachment_status logs
     import logging
@@ -736,9 +715,11 @@ def run_https_flask():
 # sudo systemctl restart cloudflared-mira-tunnel
 # journalctl -u cloudflared-mira-tunnel -f
 def run_http_flask():
-    # we need fucking http only for the Chromium extension... and apparently for the cloudflare tunnel
+    # we need http for the Chromium extension and for the cloudflare tunnel
     socketio.run(mira, debug=True, use_reloader=False, host='0.0.0.0', port=5002, allow_unsafe_werkzeug=True)
 
+# this is the window that opens on the host for people who have a non-dockerized install
+# untested for wayland
 def set_qt_identity():
     app = QtWidgets.QApplication.instance()
     if app is None:
@@ -747,27 +728,26 @@ def set_qt_identity():
     app.setWindowIcon(QtGui.QIcon("icon.png"))
 
 if __name__ == '__main__':
-
-
-    # various init
+    # Initial init
     init_db()
     check_mkcert()
-    # Start Flask in a background thread
+    load_plugs_from_db()
+    discover_playlists()
+    # Start Flask
     # HTTPS server
     flask_thread = threading.Thread(target=run_https_flask, daemon=True)
     flask_thread.start()
     # HTTP server
     http_thread = threading.Thread(target=run_http_flask, daemon=True)
     http_thread.start()
-
+    # Init text LLM and create a chat session
     init_qwen()
     ChatContext.chat_session = ChatSession()
-    load_plugs_from_db()
-    discover_playlists()
-    init_tts()
-    get_vosk_model()
+    # Init TTS
+    init_tts() # XTTS-v2
+    get_vosk_model() # Vosk
+    # Init VL LLM
     init_qwen_vl()
-
     # Only run the standalone window outside docker
     if os.getenv("IN_DOCKER", "").lower() != "true":
         # Launch WebView using Qt backend
@@ -778,25 +758,27 @@ if __name__ == '__main__':
         # Build the URL with the selected key and local ip
         local_ip = get_local_ip()
         url = f"https://{local_ip}:5001/login?token={first_key}"
-
+        # actually create the window
         window = webview.create_window(
             "Mira",
             url,
             width=400,
             height=600,
-            resizable=True,
+            resizable=True, # This one and frameless conflict for me.
             frameless=False,  # remove window frame (titlebar)
             min_size=(300, 400),
             transparent=True,
         )
 
         def configure():
+            """
+            Threading during startup: Slower machines might need this guard.
+            """
             w = window
             try:
                 top = w.gui.window()
             except Exception:
                 top = None
-
             if top is None:
                 # try again shortly if not ready
                 from PyQt6.QtCore import QTimer
@@ -811,6 +793,7 @@ if __name__ == '__main__':
             # X11 specific: ensure compositing is enabled
             top.setWindowOpacity(0.75)  # Matches CSS opacity
 
+            # no idea
             webview_widget = top.findChild(QtWidgets.QWidget, "QWebEngineView")
             if webview_widget is None:
                 for child in top.findChildren(QtWidgets.QWidget):
@@ -848,3 +831,20 @@ if __name__ == '__main__':
             stop_event.wait()
         except KeyboardInterrupt:
             print("Shutting down container...")
+
+    """
+    # Convert to MP3 using ffmpeg for faster_whisper
+    # faster_whisper wasn't/isn't updated to cuda13
+    try:
+        subprocess.run([
+            "ffmpeg", "-y", "-i", str(webm_path),
+            "-vn", "-ar", "44100", "-ac", "2", "-b:a", "192k", str(mp3_path)
+        ], check=True)
+    except subprocess.CalledProcessError as e:
+        print(f"[FFmpeg] Conversion failed: {e}")
+        return jsonify({"error": "Audio conversion failed"}), 500
+
+    # Transcribe the MP3 instead of the original webm
+    #transcriber = WhisperTranscriber()
+    #result = transcriber.transcribe_audio(mp3_path)
+    """

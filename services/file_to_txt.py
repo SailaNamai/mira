@@ -1,6 +1,6 @@
 # services.file_to_txt.py
 
-import subprocess
+import re
 from pathlib import Path
 from pdfminer.high_level import extract_text
 from services.config import BASE_PATH, FileSupport
@@ -19,23 +19,41 @@ def file_to_txt(input_file: Path):
     elif ext == ".txt" or ext in FileSupport.PLAIN_TEXT_EXTENSIONS:
         text = input_file.read_text(encoding="utf-8")
 
+    elif ext == ".rtf":
+        text = extract_text_from_rtf(input_file)
+
     else:
-        pdf_path = convert_to_pdf(input_file, temp_dir)
-        text = extract_text_from_pdf(pdf_path)
+        # For unsupported formats, either skip or provide a fallback
+        text = f"Unsupported file format: {ext}. Supported formats: .txt, .rtf, .pdf and plain text files."
 
     with open(output, "w", encoding="utf-8") as f:
         f.write(text)
 
-def convert_to_pdf(input_path: Path, output_dir: Path) -> Path:
-    subprocess.run([
-        "libreoffice",
-        "--headless",
-        "--convert-to", "pdf",
-        "--outdir", str(output_dir),
-        str(input_path)
-    ], check=True)
-    return output_dir / (input_path.stem + ".pdf")
-
 def extract_text_from_pdf(pdf_path: Path) -> str:
     return extract_text(str(pdf_path))
 
+def extract_text_from_rtf(rtf_path: Path) -> str:
+    """
+    Extract text from RTF files by removing RTF control words and formatting.
+    Simple but effective for most RTF files.
+    """
+    try:
+        # Read the RTF content
+        content = rtf_path.read_text(encoding="utf-8", errors="ignore")
+
+        # Remove RTF control words and formatting
+        # This regex removes RTF commands (anything starting with \ followed by letters)
+        text = re.sub(r'\\[a-z]+\d*', '', content)
+
+        # Remove RTF groups and special characters
+        text = re.sub(r'[{}\\]', '', text)
+
+        # Remove any remaining RTF-specific characters
+        text = re.sub(r'\\\'[0-9a-f]{2}', '', text)  # Remove hex-encoded characters
+
+        # Clean up extra whitespace
+        text = re.sub(r'\s+', ' ', text).strip()
+
+        return text
+    except Exception as e:
+        return f"Error extracting RTF content: {str(e)}"
