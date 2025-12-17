@@ -1,4 +1,4 @@
-# services.tts.py
+# services.tts_xtts_v2.py
 
 import os
 import torch
@@ -9,12 +9,13 @@ from datetime import datetime
 from TTS.tts.configs.xtts_config import XttsConfig
 from TTS.tts.models.xtts import Xtts
 from services.config import BASE_PATH
+from services.user_managment import FilePool
 from services.db_get import GetDB
 
 model = None
 gpt_latent = None
 speaker_embedding = None
-
+_tts_socketio = None # We imprint this during every app startup so its available here.
 MODEL_DIR = BASE_PATH / "static" / "xtts-v2"
 REFERENCE_WAV = MODEL_DIR / "samples" / "en_sample.wav"
 CUSTOM_WAV = MODEL_DIR / "samples" / "custom_24k.wav"
@@ -22,8 +23,18 @@ CUSTOM_WAV = MODEL_DIR / "samples" / "custom_24k.wav"
 SAMPLE_RATE = 24000
 LANGUAGE = "en"
 
-def init_tts():
+def init_tts_service(socketio_instance):
+    """Initialize the TTS service with the socketio instance"""
+    global _tts_socketio
+    _tts_socketio = socketio_instance
+    print("[TTS@XTTS-v2] Service initialized with Socket.IO")
+
+def get_xtts_v2_model():
     global model, gpt_latent, speaker_embedding
+
+    # Load to CPU or GPU
+    mode = GetDB.get_tts_mode()
+    print(f"[TTS@XTTS-v2] Initializing to {mode}...")
 
     config = XttsConfig()
     config.load_json(os.path.join(MODEL_DIR, "config.json"))
@@ -31,37 +42,50 @@ def init_tts():
     model = Xtts.init_from_config(config)
     model.load_checkpoint(config, checkpoint_dir=MODEL_DIR, eval=True) # eval=True for inference, eval=False for training
 
-    # Load to CPU or GPU
-    mode = GetDB.get_tts_mode()
-    print(f"[XTTS] Initializing to {mode}...")
     if mode == "gpu":
         device = "cuda" if torch.cuda.is_available() else "cpu"
         if device == "cpu":
-            print("[XTTS] CUDA not available! Falling back to CPU...")
+            print("[TTS@XTTS-v2] CUDA not available! Falling back to CPU...")
         model.to(device)
     else:
         model.to("cpu")
 
-    print("[XTTS] Extracting speaker latents...")
+    print("[TTS@XTTS-v2] Extracting speaker latents...")
     audio_file = CUSTOM_WAV if CUSTOM_WAV.exists() else REFERENCE_WAV
     gpt_latent, speaker_embedding = model.get_conditioning_latents(audio_path=[audio_file])
-    print("[XTTS] Ready.")
+    print("[TTS@XTTS-v2] Ready.")
 
-def voice_out(text, timestamp=None, output_dir=BASE_PATH / "static" / "temp"):
+
+def voice_out(text, user_id, timestamp=None, output_dir=BASE_PATH / "static" / "temp"):
+    """Synthesize voice using the globally set socketio instance"""
+    global _tts_socketio
+
+    if _tts_socketio is None:
+        raise RuntimeError("[TTS@XTTS-v2] Socket.IO not initialized. Call init_tts_service() first.")
+
     if model is None or gpt_latent is None or speaker_embedding is None:
-        raise RuntimeError("XTTS not initialized. Call init_tts() first.")
+        raise RuntimeError("[TTS@XTTS-v2] Not initialized. Call get_xtts_v2_model() first.")
 
     text = normalize_text(text)
+    timestamp, chunks = split_into_chunks(text) if timestamp is None else (timestamp, split_into_chunks(text)[1])
 
-    if timestamp is None:
-        timestamp, chunks = split_into_chunks(text)
-    else:
-        _, chunks = split_into_chunks(text)
+    # Get the socket_id for this user (find active device)
+    # TODO: Think about which device should play: Current or first? First would enable a stationary speaker with mic...
+    socket_id = None
+    from services.config import ACTIVE_DEVICES
+    for sid, device in ACTIVE_DEVICES.items():
+        if device['user_id'] == user_id:
+            socket_id = sid
+            break
 
-    paths = []
+    if not socket_id:
+        print(f"[TTS@XTTS-v2] No active socket found for user_id={user_id}")
+        return
+
+    print(f"[TTS@XTTS-v2] Starting synthesis for user_id={user_id}, socket_id={socket_id}")
 
     for i, chunk in enumerate(chunks):
-        print(f"[XTTS] Synthesizing chunk {i+1}/{len(chunks)}: \"{chunk}\"")
+        print(f"[TTS@XTTS-v2] Synthesizing chunk {i + 1}/{len(chunks)}: \"{chunk}\"")
         output = model.inference(
             text=chunk,
             language=LANGUAGE,
@@ -76,13 +100,92 @@ def voice_out(text, timestamp=None, output_dir=BASE_PATH / "static" / "temp"):
             enable_text_splitting=False
         )
 
-        filename = f"output_{i+1}_{timestamp}.wav"
-        path = output_dir / filename
-        torchaudio.save(path, torch.tensor(output["wav"]).unsqueeze(0), SAMPLE_RATE)
-        paths.append(f"/static/temp/{filename}")
+        # Save the chunk using FilePool
+        chunk_path = FilePool.get_voice_chunk_path(user_id, timestamp, i + 1)
+        torchaudio.save(chunk_path, torch.tensor(output["wav"]).unsqueeze(0), SAMPLE_RATE)
+
+        # Get the URL path
+        filename = chunk_path.name
+        url_path = f"/static/temp/{filename}"
+
+        # Emit Socket.IO event with the chunk info
+        print(f"[TTS@XTTS-v2] Emitting voice_chunk_ready for chunk {i + 1}")
+        _tts_socketio.emit('voice_chunk_ready', {
+            'user_id': user_id,
+            'chunk_index': i + 1,
+            'total_chunks': len(chunks),
+            'audio_url': url_path,
+            'text': chunk
+        }, room=socket_id)
+
+    # Emit completion event
+    print(f"[TTS@XTTS-v2] Voice synthesis complete for user_id={user_id}")
+    _tts_socketio.emit('voice_synthesis_complete', {
+        'user_id': user_id,
+        'total_chunks': len(chunks),
+        'timestamp': timestamp
+    }, room=socket_id)
+
+def split_into_chunks(text, max_chars=200):
+    # Split by sentence boundaries
+    sentences = re.split(r'(?<=[.!?])\s+', text.strip())
+    # Filter out empty sentences
+    sentences = [s.strip() for s in sentences if s.strip()]
+
+    if not sentences:
+        timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")
+        return timestamp, []
+
+    timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")
+    chunks = []
+
+    # Process first sentence separately - always make it the first chunk(s)
+    first_sentence = sentences[0]
+    # Split first sentence into chunks if it exceeds max_chars
+    if len(first_sentence) > max_chars:
+        remaining = first_sentence
+        while remaining:
+            if len(remaining) <= max_chars:
+                chunks.append(remaining)
+                break
+            # Find best split point near max_chars
+            split_idx = remaining.rfind(' ', 0, max_chars)
+            if split_idx == -1:  # No space found, force split
+                split_idx = max_chars
+            chunk = remaining[:split_idx].strip()
+            chunks.append(chunk)
+            remaining = remaining[split_idx:].strip()
+    else:
+        chunks.append(first_sentence)
+
+    # Process remaining sentences with original grouping logic
+    current = ""
+    for sentence in sentences[1:]:
+        if not current:
+            current = sentence
+        elif len(current) + 1 + len(sentence) <= max_chars:
+            current += " " + sentence
+        else:
+            chunks.append(current)
+            current = sentence
+    if current:
+        chunks.append(current)
+
+    return timestamp, chunks
+
+def clean_voice_chunks(user_id, output_dir=BASE_PATH / "static" / "temp"):
+    """Clean voice chunks, optionally for a specific user"""
+    # Clean only files for this specific user
+    for f in output_dir.glob(f"voice_chunk_{user_id}_*.wav"):
+        try:
+            f.unlink()
+            print(f"[TTS@XTTS-v2] Deleted user-specific file: {f}")
+        except Exception as e:
+            print(f"[TTS@XTTS-v2] Could not delete {f}: {e}")
+
 
 def normalize_text(text):
-    print("[XTTS] Normalizing text")
+    print("[TTS@XTTS-v2] Normalizing text")
     # Replace DD.MM.YYYY or DD-MM-YYYY or DD/MM/YYYY with spoken English format
     def replace_date(match):
         raw = match.group(0)
@@ -187,7 +290,7 @@ def normalize_text(text):
         )
     """.format(symbols="|".join(re.escape(s) for s in currency_symbols.keys()))
 
-    # Build the regex properly (verbose + ignorecase)
+    # Build the regex properly (verbose + ignore case)
     currency_regex = re.compile(currency_pattern, re.VERBOSE | re.IGNORECASE)
 
     def replace_currency(match):
@@ -341,30 +444,3 @@ def _small(n: int) -> str:
         else:
             # Use space instead of hyphen
             return f"{_tens[ten]} { _small_numbers[one] }"
-
-
-def split_into_chunks(text, max_chars=200):
-    # Split by sentence boundaries
-    sentences = re.split(r'(?<=[.!?])\s+', text)
-    chunks = []
-    current = ""
-
-    for sentence in sentences:
-        if len(current) + len(sentence) + 1 <= max_chars:
-            current += " " + sentence if current else sentence
-        else:
-            if current:
-                chunks.append(current.strip())
-            current = sentence
-    if current:
-        chunks.append(current.strip())
-    timestamp = datetime.now().strftime("%Y%m%d%H%M%S%f")
-    return timestamp, chunks
-
-def clean_voice_chunks(output_dir=BASE_PATH / "static" / "temp"):
-    # Clean old output files BEFORE chunking
-    for f in output_dir.glob("output_*.wav"):
-        try:
-            f.unlink()
-        except Exception as e:
-            print(f"[XTTS] Could not delete {f}: {e}")

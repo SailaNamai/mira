@@ -2,6 +2,7 @@
 
 import sqlite3
 from services.db_access import write_connection, connect
+from services.passkeys import ALLOWED_KEYS
 from datetime import datetime, date
 
 def update_today_consumed_items(updated_items: list[dict], date_str: str = None) -> bool:
@@ -256,27 +257,330 @@ def persist_nutri_item(nutri_data: dict) -> None:
         import traceback
         traceback.print_exc()
 
-
-def save_settings(data: dict):
+########################################################################################
+"""##########################     Settings-Modal/User    ############################"""
+########################################################################################
+def init_users():
     """
-    Overwrites the singleton settings row with normalized data.
+    Initialize users from services/passkeys.py:
+    1. Overwrite default user (ID=1) if its name is still 'Default User'
+    2. Check all user_names from passkeys.py against existing users in DB
+        2.1. Create users that doesn't exist in DB
+        2.2. Remove users from DB that are not in passkeys.py
+    3. Allowed keys data structure:
+        ALLOWED_KEYS = [
+        {"user_name": "whatever_you_like", "password": "your_password_here"},
+        {"user_name": "how_many_you_like", "password": "another_password_here"},
+        ]
+    4. Schema.sql excerpt:
+        -- User Info
+        CREATE TABLE IF NOT EXISTS user_info (
+          id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_name           TEXT,
+          user_birthday       TEXT,
+          location_city       TEXT,
+          location_latitude   TEXT,
+          location_longitude  TEXT,
+          schedule_monday     TEXT,
+          schedule_tuesday    TEXT,
+          schedule_wednesday  TEXT,
+          schedule_thursday   TEXT,
+          schedule_friday     TEXT,
+          schedule_saturday   TEXT,
+          schedule_sunday     TEXT,
+          additional_info     TEXT
+        );
+    5. Since passkeys only holds a username we initialize the remaining fields as '' but birthday = 01.01.2000, city = Default, latitude = 0.0, longitude = 0.0
+    """
+    print("[DB] Importing users from services.passkeys.py...")
+
+    try:
+        with write_connection() as conn:
+            # Set row factory to access columns by name
+            conn.row_factory = sqlite3.Row
+
+            # Step 1: Handle default user (ID=1)
+            default_user = conn.execute("""
+                                        SELECT id, user_name
+                                        FROM user_info
+                                        WHERE id = 1
+                                        """).fetchone()
+
+            if default_user and default_user['user_name'] == 'Default User':
+                print("[DB] Overwriting default user (ID=1) with first allowed key")
+                if ALLOWED_KEYS:
+                    first_user = ALLOWED_KEYS[0]
+                    conn.execute("""
+                                 UPDATE user_info
+                                 SET user_name          = ?,
+                                     user_birthday      = '01.01.2000',
+                                     location_city      = 'Default',
+                                     location_latitude  = '0.0',
+                                     location_longitude = '0.0',
+                                     schedule_monday    = '',
+                                     schedule_tuesday   = '',
+                                     schedule_wednesday = '',
+                                     schedule_thursday  = '',
+                                     schedule_friday    = '',
+                                     schedule_saturday  = '',
+                                     schedule_sunday    = '',
+                                     additional_info    = ''
+                                 WHERE id = 1
+                                 """, (first_user['user_name'],))
+                    print(f"[DB] Default user updated to: {first_user['user_name']}")
+
+            # Step 2: Get existing users from DB
+            existing_users = conn.execute("""
+                                          SELECT id, user_name
+                                          FROM user_info
+                                          """).fetchall()
+
+            existing_user_names = {row['user_name'] for row in existing_users}
+            existing_user_ids = {row['user_name']: row['id'] for row in existing_users}
+
+            # Step 3: Get allowed usernames from passkeys
+            allowed_user_names = {user['user_name'] for user in ALLOWED_KEYS}
+
+            # Step 4: Create users that don't exist in DB
+            for user_data in ALLOWED_KEYS:
+                user_name = user_data['user_name']
+                if user_name not in existing_user_names:
+                    print(f"[DB] Creating new user: {user_name}")
+                    conn.execute("""
+                                 INSERT INTO user_info (user_name, user_birthday, location_city,
+                                                        location_latitude, location_longitude,
+                                                        schedule_monday, schedule_tuesday, schedule_wednesday,
+                                                        schedule_thursday, schedule_friday, schedule_saturday,
+                                                        schedule_sunday, additional_info)
+                                 VALUES (?, '01.01.2000', 'Default',
+                                         '0.0', '0.0',
+                                         '', '', '',
+                                         '', '', '',
+                                         '', '')
+                                 """, (user_name,))
+
+            # Step 5: Remove users from DB that are not in passkeys.py
+            users_to_remove = existing_user_names - allowed_user_names
+            for user_name in users_to_remove:
+                if user_name != 'Default User':  # Don't remove the default user if it was overwritten
+                    user_id = existing_user_ids[user_name]
+                    print(f"[DB] Removing user not in passkeys: {user_name} (ID: {user_id})")
+                    conn.execute("""
+                                 DELETE
+                                 FROM user_info
+                                 WHERE id = ?
+                                 """, (user_id,))
+
+            conn.commit()
+            print("[DB] User initialization completed successfully")
+            final_count_row = conn.execute('SELECT COUNT(*) as count FROM user_info').fetchone()
+            final_count = final_count_row['count'] if final_count_row else 0
+            print(f"[DB] Total users in database: {final_count}")
+
+    except Exception as e:
+        print(f"[DB] Failed to initialize users: {e}")
+        import traceback
+        traceback.print_exc()
+        # Fallback: ensure at least one user exists
+        try:
+            with write_connection() as conn:
+                conn.row_factory = sqlite3.Row
+                user_count_row = conn.execute("SELECT COUNT(*) as count FROM user_info").fetchone()
+                user_count = user_count_row['count'] if user_count_row else 0
+
+                if user_count == 0:
+                    print("[DB] Creating fallback default user")
+                    conn.execute("""
+                                 INSERT INTO user_info (id, user_name, user_birthday, location_city,
+                                                        location_latitude, location_longitude)
+                                 VALUES (1, 'Default User', '01.01.2000', 'Default',
+                                         '0.0', '0.0')
+                                 """)
+                    conn.commit()
+        except Exception as fallback_e:
+            print(f"[DB] Fallback user creation also failed: {fallback_e}")
+
+def save_settings(user_id: int, data: dict):
+    """
+    Save settings for a specific user.
+    Updates both system settings and user-specific information.
     """
     # Normalize specific fields
-    data['user_birthday'] = _normalize_birthday(data.get('user_birthday', ''))
-    data['location_latitude'] = _normalize_coordinate(data.get('location_latitude', ''))
-    data['location_longitude'] = _normalize_coordinate(data.get('location_longitude', ''))
+    if 'user_birthday' in data:
+        data['user_birthday'] = _normalize_birthday(data.get('user_birthday', ''))
+    if 'location_latitude' in data:
+        data['location_latitude'] = _normalize_coordinate(data.get('location_latitude', ''))
+    if 'location_longitude' in data:
+        data['location_longitude'] = _normalize_coordinate(data.get('location_longitude', ''))
+
+    # Split data into settings-related and user_info-related fields
+    settings_fields = {
+        'stt', 'stt_mode', 'llm', 'llm_mode', 'llm_vl', 'llm_vl_mode',
+        'tts', 'tts_mode',
+        'smart_plug1_name', 'smart_plug1_ip',
+        'smart_plug2_name', 'smart_plug2_ip',
+        'smart_plug3_name', 'smart_plug3_ip',
+        'smart_plug4_name', 'smart_plug4_ip'
+    }
+
+    user_info_fields = {
+        'user_name', 'user_birthday',
+        'location_city', 'location_latitude', 'location_longitude',
+        'schedule_monday', 'schedule_tuesday', 'schedule_wednesday',
+        'schedule_thursday', 'schedule_friday', 'schedule_saturday',
+        'schedule_sunday', 'additional_info'
+    }
+
+    settings_data = {k: v for k, v in data.items() if k in settings_fields}
+    user_info_data = {k: v for k, v in data.items() if k in user_info_fields}
 
     with write_connection() as conn:
-        conn.execute("DELETE FROM settings WHERE id = 1")
+        # Update system settings (singleton)
+        if settings_data:
+            columns = ', '.join(settings_data.keys())
+            placeholders = ', '.join(['?'] * len(settings_data))
+            values = list(settings_data.values())
 
-        columns = ', '.join(data.keys())
-        placeholders = ', '.join(['?'] * len(data))
-        values = list(data.values())
+            conn.execute(
+                f"UPDATE settings SET {', '.join([f'{col} = ?' for col in settings_data.keys()])} WHERE id = 1",
+                values
+            )
 
-        conn.execute(
-            f"INSERT INTO settings (id, {columns}) VALUES (1, {placeholders})",
-            values
-        )
+        # Update or insert user info
+        if user_info_data:
+            # Check if user exists
+            existing_user = conn.execute("SELECT id FROM user_info WHERE id = ?", (user_id,)).fetchone()
+
+            if existing_user:
+                # Update existing user
+                columns = ', '.join(user_info_data.keys())
+                placeholders = ', '.join([f'{col} = ?' for col in user_info_data.keys()])
+                values = list(user_info_data.values()) + [user_id]
+
+                conn.execute(
+                    f"UPDATE user_info SET {placeholders} WHERE id = ?",
+                    values
+                )
+            else:
+                # Insert new user (shouldn't happen with dummy user_id=1, but handle it anyway)
+                columns = ', '.join(user_info_data.keys())
+                placeholders = ', '.join(['?'] * len(user_info_data))
+                values = list(user_info_data.values())
+
+                conn.execute(
+                    f"INSERT INTO user_info (id, {columns}) VALUES (?, {placeholders})",
+                    [user_id] + values
+                )
+
+def persist_resource_safety_overrides(recommended_overrides: dict) -> bool:
+    """
+    Persists resource-based safety overrides to the singleton settings row.
+    Validates inputs and only updates fields that need changing.
+
+    This follows the same pattern as save_nutrition_user_values and other
+    persistence functions in this module.
+
+    Args:
+        recommended_overrides: Dictionary with keys 'llm_mode', 'llm_vl_mode', 'tts_mode'
+                               and values 'gpu' or 'cpu'
+
+    Returns:
+        bool: True if updates were applied, False if no changes needed or error occurred
+    """
+    try:
+        # Validate input structure and values
+        valid_modes = {"gpu", "cpu"}
+        required_keys = {"llm_mode", "llm_vl_mode", "tts_mode"}
+
+        # Check required keys exist
+        if not all(key in recommended_overrides for key in required_keys):
+            raise ValueError(f"Missing required keys. Need: {required_keys}")
+
+        # Validate mode values
+        for key in required_keys:
+            mode = recommended_overrides[key]
+            if mode not in valid_modes:
+                raise ValueError(f"Invalid mode for {key}: {mode} but must be 'gpu' or 'cpu'")
+
+        # Get current settings to avoid unnecessary updates
+        from services.db_get import GetDB
+
+        current_settings = {}
+        current_settings['llm_mode'] = GetDB.get_llm_mode()
+        current_settings['llm_vl_mode'] = GetDB.get_llm_vl_mode()
+        current_settings['tts_mode'] = GetDB.get_tts_mode()
+
+        # Check if any changes are actually needed
+        changes_needed = False
+        changes_to_apply = {}
+
+        for key in required_keys:
+            if current_settings[key] != recommended_overrides[key]:
+                changes_needed = True
+                changes_to_apply[key] = recommended_overrides[key]
+                print(
+                    f"[DB] Resource override needed: {key} '{current_settings[key]}' to '{recommended_overrides[key]}'")
+
+        if not changes_needed:
+            return False
+
+        # Apply the changes to the database
+        with write_connection() as conn:
+            # Build the UPDATE statement dynamically based on what needs to change
+            set_clauses = []
+            params = []
+
+            for key, value in changes_to_apply.items():
+                set_clauses.append(f"{key} = ?")
+                params.append(value)
+
+            # Add the WHERE condition for the singleton row
+            params.append(1)  # id = 1
+
+            update_sql = f"""
+                UPDATE settings 
+                SET {', '.join(set_clauses)}
+                WHERE id = ?
+            """
+
+            cursor = conn.execute(update_sql, params)
+            rows_affected = cursor.rowcount
+
+            if rows_affected == 0:
+                # No row was updated - might need to insert instead
+                print("[DB] Warning: No settings row updated. Attempting to insert default row...")
+
+                # Insert default singleton row with overrides applied
+                insert_sql = """
+                             INSERT INTO settings (id, stt, stt_mode, llm, llm_mode, llm_vl, llm_vl_mode, \
+                                                   tts, tts_mode, \
+                                                   smart_plug1_name, smart_plug1_ip, \
+                                                   smart_plug2_name, smart_plug2_ip, \
+                                                   smart_plug3_name, smart_plug3_ip, \
+                                                   smart_plug4_name, smart_plug4_ip) \
+                             VALUES (1, 'distil-whisper', 'gpu', 'qwen3', ?, 'qwen3_vl', ?, \
+                                     'xtts_v2', ?, \
+                                     '', '', '', '', '', '', '', '') \
+                             """
+
+                insert_params = [
+                    changes_to_apply.get('llm_mode', 'cpu'),
+                    changes_to_apply.get('llm_vl_mode', 'cpu'),
+                    changes_to_apply.get('tts_mode', 'cpu')
+                ]
+
+                conn.execute(insert_sql, insert_params)
+                print("[DB] Default settings row created with resource safety overrides")
+            else:
+                print(f"[DB] Updated {rows_affected} row(s) with resource safety overrides")
+
+        return True
+
+    except Exception as e:
+        print(f"[DB] Failed to persist resource safety overrides: {e}")
+        import traceback
+        traceback.print_exc()
+        return False
 
 def _normalize_birthday(value: str) -> str:
     """

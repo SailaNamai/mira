@@ -1,8 +1,10 @@
 """
-1. Enter your own keys:
+1. Enter users and your own keys:
 """
-
-ALLOWED_KEYS = {"whatever_you_like", "how_many_you_like"}
+ALLOWED_KEYS = [
+    {"user_name": "whatever_you_like", "password": "your_password_here"},
+    {"user_name": "how_many_you_like", "password": "another_password_here"},
+]
 SECRET_KEY = 'secret_key_placeholder'
 
 """

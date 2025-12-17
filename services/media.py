@@ -244,7 +244,7 @@ def discover_playlists() -> None:
             stem = path.stem
             stem_list.append(stem)
             stem_to_filename[stem] = path.name
-            print(f"[Media] Found playlist: {stem}: {path.name}")
+            #print(f"[Media] Found playlist: {stem}: {path.name}")
 
     # Update global configuration
     g.PLAYLIST_STEM.clear()

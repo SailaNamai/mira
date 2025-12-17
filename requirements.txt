@@ -5,6 +5,7 @@ dateparser
 torchaudio==2.9.1
 torch==2.9.1
 torchcodec==0.9.0
+transformers==4.57.1
 vosk
 ddgs
 trafilatura
@@ -19,3 +20,6 @@ llama-cpp-python
 Flask~=3.1.2
 flask-cors
 flask-socketio
+soundfile
+numpy
+psutil

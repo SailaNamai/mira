@@ -12,7 +12,8 @@ CREATE TABLE IF NOT EXISTS intent_action (
 -- CHAT
 CREATE TABLE IF NOT EXISTS intent_chat (
   id                  INTEGER PRIMARY KEY AUTOINCREMENT,   -- unique identifier
-  conv_id             INTEGER,                             -- unique chat id
+  user_id             INT,
+  conv_id             TEXT,                                -- unique chat id
   user_msg            TEXT,                                -- the user query
   response            TEXT,                                -- mira's response
   think               TEXT,                                -- reasoning process
@@ -31,17 +32,17 @@ CREATE TABLE IF NOT EXISTS wikipedia (
   created_at TEXT DEFAULT (strftime('%Y-%m-%d at %H:%M','now','localtime')) -- timestamp of insertion
 );
 
--- Settings
+-- Settings for all users
 CREATE TABLE IF NOT EXISTS settings (
   id                  INTEGER PRIMARY KEY CHECK (id = 1),  -- singleton row
-  stt                 TEXT,
-  stt_mode            TEXT,
-  llm                 TEXT,
-  llm_mode            TEXT,
-  llm_vl              TEXT,
-  llm_vl_mode         TEXT,
-  tts                 TEXT,
-  tts_mode            TEXT,
+  stt                 TEXT,                                -- can be one of vosk, distil-whisper; default distil-whisper
+  stt_mode            TEXT,                                -- can be one of gpu, cpu; default gpu
+  llm                 TEXT,                                -- can be one of qwen3; default qwen3
+  llm_mode            TEXT,                                -- can be one of gpu, cpu; default gpu
+  llm_vl              TEXT,                                -- can be one of qwen3_vl; default qwen3_vl
+  llm_vl_mode         TEXT,                                -- can be one of gpu, cpu; default: cpu
+  tts                 TEXT,                                -- can be one of xtts_v2; default xtts_v2
+  tts_mode            TEXT,                                -- can be one of gpu, cpu; default gpu
   smart_plug1_name    TEXT,
   smart_plug1_ip      TEXT,
   smart_plug2_name    TEXT,
@@ -49,7 +50,12 @@ CREATE TABLE IF NOT EXISTS settings (
   smart_plug3_name    TEXT,
   smart_plug3_ip      TEXT,
   smart_plug4_name    TEXT,
-  smart_plug4_ip      TEXT,
+  smart_plug4_ip      TEXT
+);
+
+-- User Info
+CREATE TABLE IF NOT EXISTS user_info (
+  id                  INTEGER PRIMARY KEY AUTOINCREMENT,
   user_name           TEXT,
   user_birthday       TEXT,
   location_city       TEXT,

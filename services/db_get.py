@@ -5,11 +5,14 @@ import json
 from datetime import date
 from services.db_access import connect, BASE
 
+########################################################################################
+"""############################       Nutrition        ##############################"""
+########################################################################################
 # Path to reduced USDA dataset
 REDUCED_FOUNDATION_FOODS = BASE / "static" / "nutrition" / "FoundationFoods.json"
 REDUCED_BRANDED_FOODS = BASE / "static" / "nutrition" / "BrandedFoods.json"
 
-# Load once at import, keep separate
+# Load JSON once at import, keep separate
 def _load_json(path):
     try:
         with open(path, "r", encoding="utf-8") as f:
@@ -19,11 +22,10 @@ def _load_json(path):
     except json.JSONDecodeError as e:
         print(f"Warning: could not parse {path}: {e}")
         return []
-
 foundation_foods = _load_json(REDUCED_FOUNDATION_FOODS)
 branded_foods = _load_json(REDUCED_BRANDED_FOODS)
 
-# json search helper
+# JSON search helper
 def _search_json(term: str, foods: list, source_id: int):
     """Search a single JSON dataset and tag with source_id."""
     results = []
@@ -84,92 +86,151 @@ def food_search(term: str):
     results.sort(key=lambda r: r["id"], reverse=False) # False=ASC, True=DSC
     return results
 
-def get_settings():
-    # repopulate the settings-modal
+
+########################################################################################
+"""############################     Settings-Modal     ##############################"""
+########################################################################################
+def get_settings(user_id: int):
+    """
+    Get settings for a specific user.
+    Returns merged system settings and user-specific information.
+    """
     with connect(readonly=True) as conn:
         conn.row_factory = sqlite3.Row
-        row = conn.execute("SELECT * FROM settings WHERE id = 1").fetchone()
-        return dict(row) if row else {}
 
+        # Get system-wide settings (singleton)
+        system_settings_row = conn.execute("SELECT * FROM settings WHERE id = 1").fetchone()
+        system_settings = dict(system_settings_row) if system_settings_row else {}
+
+        # Get user-specific information
+        user_info_row = conn.execute(
+            "SELECT * FROM user_info WHERE id = ?",
+            (user_id,)
+        ).fetchone()
+
+        if not user_info_row:
+            # If user doesn't exist, return system settings with empty user info
+            # In a real implementation, this should handle user creation or return an error
+            print(f"[WARNING] No user found with ID {user_id}. Using default values.")
+            user_info = {
+                'user_name': '',
+                'user_birthday': '',
+                'location_city': '',
+                'location_latitude': '',
+                'location_longitude': '',
+                'schedule_monday': '',
+                'schedule_tuesday': '',
+                'schedule_wednesday': '',
+                'schedule_thursday': '',
+                'schedule_friday': '',
+                'schedule_saturday': '',
+                'schedule_sunday': '',
+                'additional_info': ''
+            }
+        else:
+            user_info = dict(user_info_row)
+
+        # Merge system settings and user info
+        # User-specific settings take precedence if there are naming conflicts
+        merged_settings = {
+            **system_settings,
+            **user_info,
+            'current_user_id': user_id  # Include user ID for reference
+        }
+
+        return merged_settings
+
+
+########################################################################################
+"""############################         GetDB          ##############################"""
+########################################################################################
 class GetDB:
     @staticmethod
-    def _get_single_value(column: str):
+    def _get_single_value_by_id(table: str, column: str, id_value: int):
+        """Generic helper to get a single column value from a specified table where id = ?"""
         with connect(readonly=True) as conn:
             conn.row_factory = sqlite3.Row
-            row = conn.execute(f"SELECT {column} FROM settings WHERE id = 1").fetchone()
+            row = conn.execute(f"SELECT {column} FROM {table} WHERE id = ?", (id_value,)).fetchone()
             return row[column] if row and column in row.keys() else None
 
     @staticmethod
-    def get_smart_plugs():
+    def _get_row_as_dict_by_id(table: str, columns: str, id_value: int):
+        """Generic helper to get multiple columns as a dictionary from a specified table where id = ?"""
         with connect(readonly=True) as conn:
             conn.row_factory = sqlite3.Row
-            row = conn.execute("""
-                SELECT smart_plug1_name, smart_plug1_ip,
-                       smart_plug2_name, smart_plug2_ip,
-                       smart_plug3_name, smart_plug3_ip,
-                       smart_plug4_name, smart_plug4_ip
-                FROM settings WHERE id = 1
-            """).fetchone()
+            row = conn.execute(f"""
+                SELECT {columns}
+                FROM {table} WHERE id = ?
+            """, (id_value,)).fetchone()
             return dict(row) if row else {}
+
+    # Settings methods remain global (singleton table)
+    @staticmethod
+    def get_smart_plugs():
+        """Get smart plug configuration from settings table (global settings)"""
+        columns = """
+            smart_plug1_name, smart_plug1_ip,
+            smart_plug2_name, smart_plug2_ip,
+            smart_plug3_name, smart_plug3_ip,
+            smart_plug4_name, smart_plug4_ip
+        """
+        return GetDB._get_row_as_dict_by_id("settings", columns.strip(), 1)
 
     @staticmethod
     def get_stt():
-        return GetDB._get_single_value("stt")
+        return GetDB._get_single_value_by_id("settings", "stt", 1)
 
     @staticmethod
     def get_stt_mode():
-        return GetDB._get_single_value("stt_mode")
+        return GetDB._get_single_value_by_id("settings", "stt_mode", 1)
 
     @staticmethod
     def get_llm():
-        return GetDB._get_single_value("llm")
+        return GetDB._get_single_value_by_id("settings", "llm", 1)
 
     @staticmethod
     def get_llm_mode():
-        return GetDB._get_single_value("llm_mode")
+        return GetDB._get_single_value_by_id("settings", "llm_mode", 1)
 
     @staticmethod
     def get_llm_vl():
-        return GetDB._get_single_value("llm_vl")
+        return GetDB._get_single_value_by_id("settings", "llm_vl", 1)
 
     @staticmethod
     def get_llm_vl_mode():
-        return GetDB._get_single_value("llm_vl_mode")
+        return GetDB._get_single_value_by_id("settings", "llm_vl_mode", 1)
 
     @staticmethod
     def get_tts():
-        return GetDB._get_single_value("tts")
+        return GetDB._get_single_value_by_id("settings", "tts", 1)
 
     @staticmethod
     def get_tts_mode():
-        return GetDB._get_single_value("tts_mode")
+        return GetDB._get_single_value_by_id("settings", "tts_mode", 1)
+
+    # User-specific methods now accept user_id parameter
+    @staticmethod
+    def get_user_name(user_id: int):
+        return GetDB._get_single_value_by_id("user_info", "user_name", user_id)
 
     @staticmethod
-    def get_user_name():
-        return GetDB._get_single_value("user_name")
+    def get_user_birthday(user_id: int):
+        return GetDB._get_single_value_by_id("user_info", "user_birthday", user_id)
 
     @staticmethod
-    def get_user_birthday():
-        return GetDB._get_single_value("user_birthday")
+    def get_location(user_id: int):
+        """Get location information from user_info table for specific user"""
+        columns = "location_city, location_latitude, location_longitude"
+        return GetDB._get_row_as_dict_by_id("user_info", columns, user_id)
 
     @staticmethod
-    def get_location():
-        with connect(readonly=True) as conn:
-            conn.row_factory = sqlite3.Row
-            row = conn.execute("""
-                SELECT location_city, location_latitude, location_longitude
-                FROM settings WHERE id = 1
-            """).fetchone()
-            return dict(row) if row else {}
-
-    @staticmethod
-    def get_schedule(day: str):
+    def get_schedule(user_id: int, day: str):
         column = f"schedule_{day.lower()}"
-        return GetDB._get_single_value(column)
+        return GetDB._get_single_value_by_id("user_info", column, user_id)
 
     @staticmethod
-    def get_additional_info():
-        return GetDB._get_single_value("additional_info")
+    def get_additional_info(user_id: int):
+        return GetDB._get_single_value_by_id("user_info", "additional_info", user_id)
 
     @staticmethod
     def get_nutri_item(barcode: str):

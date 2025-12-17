@@ -6,8 +6,13 @@
   <title>Mira</title>
   <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
   <link rel="icon" href="{{ url_for('static', filename='img/icon.png') }}" type="image/png">
-
-  <!-- optional: small inline script to set CSS --vh on first paint -->
+<script>
+    const currentUser = {
+        id: {{ user_id|tojson }},
+        username: {{ username|tojson }}
+    };
+</script>
+  <!-- small inline script to set CSS --vh on first paint -->
   <script>
     (function setVh(){
         function updateVh() {
@@ -116,7 +121,13 @@
     </div>
 
     <!-- Script loaders -->
+    <!-- Load Socket.IO client first -->
     <script src="{{ url_for('static', filename='js/socket.io.js') }}"></script>
+    <script>
+        const socket = io();
+        // Make socket available globally
+        window.socket = socket;
+    </script>
     <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
     <script src="{{ url_for('static', filename='js/new_chat.js') }}"></script>
     <script src="{{ url_for('static', filename='js/attachment.js') }}"></script>

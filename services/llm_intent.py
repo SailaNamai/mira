@@ -2,8 +2,10 @@
 
 import re
 import json
+from flask import session
 from services.prompts_system import get_system_prompt_intent, SYSTEM_PROMPT_WIKIPEDIA, SYSTEM_PROMPT_LISTIFY, SYSTEM_PROMPT_WEB
 from services.db_access import write_connection
+from services.user_managment import FilePool
 from services.wikipedia import wikipedia_lucky_search
 from services.url_to_txt import save_url_text, save_multiple_urls_text, trim_output_txt
 from services.web_search import web_search
@@ -43,8 +45,10 @@ def ask_wikipedia(user_msg: str) -> str:
         raw_text = raw_text.replace(" ", "_")
         print(f"[Wikipedia] search key: {raw_text}")
         api_return = wikipedia_lucky_search(user_msg, raw_text)
-        save_url_text(api_return["url"])
-        trim_output_txt()
+        user_id = session.get('user_id')
+        output_path = FilePool.get_output_path(user_id)
+        save_url_text(api_return["url"], output_path)
+        trim_output_txt(output_path)
         return f"Found an entry for {raw_text}."
     except Exception as e:
         print(f"[Error] {e}")
@@ -63,7 +67,9 @@ def ask_web(user_msg: str) -> str:
         raw_text = clean_response_text_plain(response["choices"][0]["message"]["content"])
         print(f"[WEB search] search key: {raw_text}")
         search = web_search(raw_text)
-        to_text = save_multiple_urls_text(search)
+        user_id = session.get('user_id')
+        output_path = FilePool.get_output_path(user_id)
+        to_text = save_multiple_urls_text(search, output_path)
         return to_text
     except Exception as e:
         print(f"[Error] {e}")

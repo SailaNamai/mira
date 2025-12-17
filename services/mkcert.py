@@ -47,7 +47,7 @@ def generate_cert():
 
     # Gather inputs
     local_ip = get_local_ip()
-    location = GetDB.get_location()
+    location = GetDB.get_location(user_id=1)
     city = location.get("location_city", "local")
 
     # Build SANs: app name, IP, maybe city-based alias

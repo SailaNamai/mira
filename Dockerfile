@@ -1,3 +1,4 @@
+
 # ---------- Builder stage ----------
 FROM nvidia/cuda:13.0.0-devel-ubuntu24.04 AS builder
 
@@ -138,7 +139,7 @@ RUN /opt/venv/bin/pip install --no-cache-dir \
 
 # Install coqui-tts deps (except torch/torchaudio, already pinned), pin transformers
 RUN /opt/venv/bin/pip install --no-cache-dir \
-    anyascii coqpit-config coqui-tts-trainer cython einops encodec fsspec \
+    anyascii coqpit-config coqui-tts-trainer cython einops encodec fsspec ko-speech-tools \
     gruut inflect librosa matplotlib "monotonic-alignment-search" num2words \
     numba numpy packaging pysbd pyyaml scipy soundfile tqdm "transformers==4.57.1" typing-extensions
 

@@ -2,8 +2,11 @@
 
 import re
 import json
+import uuid
 from typing import Optional
 from datetime import datetime
+from flask import session
+from services.user_managment import HasAttachment
 from services.prompts_system import get_system_prompt_chat, get_system_prompt_weather
 from services.db_access import write_connection
 import services.config as config
@@ -11,8 +14,8 @@ import services.config as config
 logs = config.BASE_PATH / "logs"
 log_chat = logs / "chat.log"
 
-def ask_weather(user_msg: str) -> str:
-    system_prompt = get_system_prompt_weather()
+def ask_weather(user_id: int, user_msg: str) -> str:
+    system_prompt = get_system_prompt_weather(user_id)
     messages = [
         {"role": "system", "content": system_prompt},
         {"role": "user", "content": user_msg + "\n/no_think"}
@@ -37,10 +40,30 @@ def ask_weather(user_msg: str) -> str:
         print(f"[Weather] Error: {e}")
         raise
 
+class ChatContext:
+    sessions = {}
+
+    @classmethod
+    def get_session(cls, user_id: int) -> "ChatSession":
+        # Return existing session or create a new one
+        if user_id not in cls.sessions:
+            cls.sessions[user_id] = ChatSession(user_id)
+        return cls.sessions[user_id]
+
+    @classmethod
+    def create_session(cls, user_id: int):
+        # Always replace with a fresh ChatSession
+        cls.sessions[user_id] = ChatSession(user_id)
+        HasAttachment.clear(user_id)
+        print(f"[ChatContext] Created new ChatSession for user_id={user_id}")
+
 class ChatSession:
-    def __init__(self):
-        system_prompt = get_system_prompt_chat()
+    def __init__(self, user_id: int):
         self.llm = config.llm
+        self.user_id = user_id
+        self.conv_id = uuid.uuid4().hex  # unique per session
+
+        system_prompt = get_system_prompt_chat(user_id)
         self.history = [{"role": "system", "content": system_prompt}]
 
     def trim_history(self):
@@ -72,12 +95,9 @@ class ChatSession:
         time = datetime.now().strftime("%d.%m.%Y, Time: %H:%M")
         weekday = datetime.now().strftime("%A")
         timestamp = weekday + ", " + time
+        user_id = session.get('user_id')
 
         try:
-            """
-            Qwen3 supports think tag, I suppose models without support might react a little weird.
-            When others models implemented: Remove and decide on including.
-            """
             tag = "/think" if user_msg.strip().endswith("/think") else "/no think"
             print(f"[Mira] Using {tag}")
 
@@ -105,7 +125,9 @@ class ChatSession:
             reply_pure = re.sub(r"<think>.*?</think>", "", reply, flags=re.DOTALL).strip()
 
             # Persist to DB
-            chat_persist_db(self, user_msg, reply_pure, think)
+            # inside ChatSession.ask, before chat_persist_db(...)
+            # print(f"[Mira] Persisting: user_id={user_id!r}, session_obj_id={id(self)}, session_conv_id={self.conv_id}")
+            chat_persist_db(self, user_msg, user_id, reply_pure, think)
 
             return reply_pure
 
@@ -114,18 +136,25 @@ class ChatSession:
             raise
 
 
-def chat_persist_db(self, user_msg, reply, think):
+def chat_persist_db(self, user_msg, user_id, reply, think):
     """
     Persist chat exchanges into intent_chat table.
-
-    Parameters
-    - self: ChatSession instance
-    - user_msg: user's message (str)
-    - reply: assistant reply (str)
+    -- CHAT
+    CREATE TABLE IF NOT EXISTS intent_chat (
+      id                  INTEGER PRIMARY KEY AUTOINCREMENT,   -- unique identifier
+      user_id             INT,
+      conv_id             INTEGER,                             -- unique chat id
+      user_msg            TEXT,                                -- the user query
+      response            TEXT,                                -- mira's response
+      think               TEXT,                                -- reasoning process
+      token_cost          INTEGER,                             -- token cost query+response
+      created_at TEXT DEFAULT (strftime('%Y-%m-%d at %H:%M','now','localtime')) -- timestamp of insertion
+    );
     """
     try:
-        # Determine conv_id: use id(self) as a lightweight unique session identifier
-        conv_id = id(self)
+        # id(self) as a lightweight unique session identifier
+        conv_id = self.conv_id
+        print(f"[ChatSession] Created session for user_id={user_id} with conv_id={self.conv_id}")
 
         # Compute token cost
         try: token_cost = count_tokens(user_msg + reply)
@@ -135,10 +164,10 @@ def chat_persist_db(self, user_msg, reply, think):
             cur = conn.cursor()
             cur.execute(
                 """
-                INSERT INTO intent_chat (conv_id, user_msg, response, think, token_cost)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO intent_chat (conv_id, user_msg, user_id, response, think, token_cost)
+                VALUES (?, ?, ?, ?, ?, ?)
                 """,
-                (conv_id, user_msg, reply, think, token_cost),
+                (conv_id, user_msg, user_id, reply, think, token_cost),
             )
     except Exception as e:
         # Log but do not raise to avoid breaking chat flow

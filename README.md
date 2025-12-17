@@ -13,10 +13,10 @@ A local, **voice-in**, **voice-out**, LLM-powered assistant, that actually integ
 - Scans barcodes, tracks nutrition, dietary goals and builds a trusted local DB. 
 - Controls smart plugs (Tasmota), Plays media, Handles shopping and to-do lists, Searches Wikipedia, Gives (3-day) weather forecast, and more.
 
-It is **very** alpha but now comes with a Dockerfile:
+It is still **very** alpha:
 - [CHANGELOG.md](CHANGELOG.md)  |  [INSTALL.md](INSTALL.md) (I'll help if asked).
 
-Check the (*outdated*, alpha2) **video demo**:
+Check the (*very outdated (sorry)*, alpha2) **video demo**:
 <video src="https://github.com/user-attachments/assets/24d33745-3181-498f-b466-828c7b116cea" width="640" height="480" controls>
   Your browser does not support the video tag.
 </video>
@@ -46,7 +46,7 @@ Check the (*outdated*, alpha2) **video demo**:
   </tr>
 </table>
 
-### Speech to text (VOSK for now) + Interpreter and text to speech (XTTS-v2 for now):
+### Speech to text (for now: Whisper-v3-large or VOSK) + Interpreter and text to speech (for now: XTTS-v2):
 - Matches commands to user input, splits the user input accordingly and attempts to correct voice-in errors.
 - Streams voice chunks to keep latency down, use any voice you like.
 <table>
@@ -67,13 +67,12 @@ Check the (*outdated*, alpha2) **video demo**:
 [output_demo.wav](static/readme/output_demo.wav)
 
 - (Normalized) Results are okay for voice-out, XTTS-v2 struggles somewhat with code, markup, etc., but does well on "normal" text.
-- Disclaimer: Results are mixed for voice-in, the LLM interpreter catches some but not all errors.
-
-**Long Term**: Implement various additional options with lower error rates, like Nvidia Canary, Faster Whisper, etc.
+- **Voice-in**: 
+  - Results are good for Whisper.
+  - Results are mixed for Vosk (the LLM interpreter catches some but not all errors) but it's very fast on CPU.
 
 ### Take a picture
 ![vl_1.png](static/readme/vl_1.png)
-
 
 ### Nutrition
 <table>
@@ -106,10 +105,6 @@ Check the (*outdated*, alpha2) **video demo**:
 
 ### Reads context from Chromium 
 ![chromium_extension.jpg](static/readme/chromium_extension.jpg)
-
-### Wikipedia
-![wikipedia.jpg](static/readme/wikipedia.jpg)
-
 
 ### Chat
 Answers anything that is not a command.
@@ -146,6 +141,9 @@ Answers anything that is not a command.
 
 ### Use for shopping and to-do list
 ![demo_list.jpg](static/readme/demo_list.jpg)
+
+### Wikipedia
+![wikipedia.jpg](static/readme/wikipedia.jpg)
 
 ### Understand time and user schedule (done, sort of, needs some more tweaking and calendar access)
 - It references fun because sunday is defined as free time in my schedule.

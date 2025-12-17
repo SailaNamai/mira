@@ -44,6 +44,74 @@ def write_connection(timeout=15):
 ########################################################################################
 """#########################   Ensure DB isn't stale     ############################"""
 ########################################################################################
+"""
+Objective: Ensure DB doesn't prevent app functionality and startup if schema.sql is updated.
+Side Consideration: Preserve as much user data as possible. Always default to ensuring current schema. 
+"""
+def init_db() -> None:
+    """
+    Create the database if it does not already exist and ensure singleton row.
+    Also verifies and migrates schema to match SCHEMA file.
+    """
+    print("[DB] Create if not exist.")
+    with write_connection() as conn:
+        with open(SCHEMA, "r", encoding="utf-8") as f:
+            schema_sql = f.read()
+
+        # Run initial schema (will create tables if missing)
+        conn.executescript(schema_sql)
+
+        # Ensure the singleton row exists in settings table
+        row = conn.execute("SELECT id FROM settings WHERE id = 1").fetchone()
+        if not row:
+            print("[DB] Insert default settings.")
+            conn.execute("""
+                INSERT INTO settings (
+                    id, stt, stt_mode, llm, llm_mode, llm_vl, llm_vl_mode,
+                    tts, tts_mode,
+                    smart_plug1_name, smart_plug1_ip,
+                    smart_plug2_name, smart_plug2_ip,
+                    smart_plug3_name, smart_plug3_ip,
+                    smart_plug4_name, smart_plug4_ip
+                )
+                VALUES (
+                    1, 'distil-whisper', 'gpu', 'qwen3', 'gpu', 'qwen3_vl', 'cpu',
+                    'xtts_v2', 'gpu',
+                    '', '', '', '', '', '', '', ''
+                )
+            """)
+
+        # Ensure at least one default user exists in user_info table
+        default_user = conn.execute("SELECT id FROM user_info WHERE id = 1").fetchone()
+        if not default_user:
+            print("[DB] Insert default user info.")
+            conn.execute("""
+                INSERT INTO user_info (
+                    id, user_name, user_birthday,
+                    location_city, location_latitude, location_longitude,
+                    schedule_monday, schedule_tuesday, schedule_wednesday,
+                    schedule_thursday, schedule_friday, schedule_saturday,
+                    schedule_sunday, additional_info
+                )
+                VALUES (
+                    1, 'Default User', '01.01.1990',
+                    'Default City', '0.0', '0.0',
+                    '', '', '',
+                    '', '', '',
+                    '', 'Default user created during initialization'
+                )
+            """)
+
+        print("[DB] Verifying health and syncing schema...")
+
+        schema_tables = list(_parse_create_table_statements(schema_sql).keys())
+        print(f"[DB] Checking tables: {schema_tables}")
+
+        for table in schema_tables:
+            _migrate_table(conn, table, schema_sql)
+
+        print("[DB] Schema sync complete.")
+
 def create_backup() -> Path:
     """
     Creates a backup of mira.db in BASE.
@@ -209,58 +277,6 @@ def _migrate_table(conn: sqlite3.Connection, table: str, schema_sql: str) -> Non
     conn.execute(f"DROP TABLE {table};")
     conn.execute(f"ALTER TABLE {temp_table} RENAME TO {table};")
     print(f"[DB] Table '{table}' migrated successfully.")
-
-def init_db() -> None:
-    """
-    Create the database if it does not already exist and ensure singleton row.
-    Also verifies and migrates schema to match SCHEMA file.
-    """
-    print("[DB] Create if not exist.")
-    with write_connection() as conn:
-        with open(SCHEMA, "r", encoding="utf-8") as f:
-            schema_sql = f.read()
-
-        # Run initial schema (will create tables if missing)
-        conn.executescript(schema_sql)
-
-        # Ensure the singleton row exists
-        row = conn.execute("SELECT id FROM settings WHERE id = 1").fetchone()
-        if not row:
-            print("[DB] Insert default settings.")
-            conn.execute("""
-                INSERT INTO settings (
-                    id, stt, stt_mode, llm, llm_mode, llm_vl, llm_vl_mode,
-                    tts, tts_mode,
-                    smart_plug1_name, smart_plug1_ip,
-                    smart_plug2_name, smart_plug2_ip,
-                    smart_plug3_name, smart_plug3_ip,
-                    smart_plug4_name, smart_plug4_ip,
-                    user_name, user_birthday,
-                    location_city, location_latitude, location_longitude,
-                    schedule_monday, schedule_tuesday, schedule_wednesday,
-                    schedule_thursday, schedule_friday, schedule_saturday,
-                    schedule_sunday, additional_info
-                )
-                VALUES (
-                    1, 'vosk', 'cpu', 'qwen3', 'gpu', 'qwen3_vl', 'cpu',
-                    'xtts_v2', 'gpu',
-                    '', '', '', '', '', '', '', '',
-                    'User', 'Birthday',
-                    '', '', '',
-                    '', '', '', '', '', '', '',
-                    ''
-                )
-            """)
-
-        print("[DB] Verifying health and syncing schema...")
-
-        schema_tables = list(_parse_create_table_statements(schema_sql).keys())
-        print(f"[DB] Checking tables: {schema_tables}")
-
-        for table in schema_tables:
-            _migrate_table(conn, table, schema_sql)
-
-        print("[DB] Schema sync complete.")
 
 if __name__ == "__main__":
     with open(SCHEMA) as f:

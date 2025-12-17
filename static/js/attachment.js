@@ -3,8 +3,6 @@
 const attachIcon = document.querySelector(".icon-attach");
 const fileInput = document.getElementById("file-input");
 const removeIcon = document.querySelector(".icon-remove-attachment");
-// Socket.IO
-const socket = io(); // Connect to the Socket.IO server
 
 let hasAttachment = false;
 

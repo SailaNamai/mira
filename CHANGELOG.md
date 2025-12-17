@@ -1,3 +1,10 @@
+### alpha 0.7.20251217
+- added support for distil-whisper (voice-in)
+- added multi-user support and improved authentication
+- major rewrite and optimizations (ongoing)
+- updated downloads.sh to get whisper model from huggingface
+- updated Dockerfile
+
 ### alpha 0.6.2.20251213
 - Various bugs squashed
 - cleaning, rewriting and commenting (ongoing)

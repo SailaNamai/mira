@@ -15,7 +15,7 @@
             <div class="input-row dual-control">
                 <select id="setting-stt">
                     <option value="vosk">VOSK (CPU)</option>
-                    <option value="canary">Placeholder 1</option>
+                    <option value="distil-whisper">Distil-Whisper</option>
                     <option value="faster_whisper">Placeholder 2</option>
                 </select>
                 <div id="stt-toggle-wrapper" class="toggle" data-target="stt-mode">
@@ -89,7 +89,7 @@
 
             <h3>Name:</h3>
             <div class="input-row">
-                <input type="text" id="user-setting-name" placeholder="Name">
+                <div id="user-display-name" class="user-display"></div>
                 <input type="text" id="user-setting-age" placeholder="Birthday">
             </div>
 
@@ -228,8 +228,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     document.getElementById(`user-setting-smartplug${n}-ip`).value   = data[`smart_plug${n}_ip`] || '';
                 });
 
-                // --- User info ---
-                document.getElementById('user-setting-name').value = data.user_name || '';
+                // --- User info - Updated: Display name instead of input ---
+                document.getElementById('user-display-name').textContent = data.user_name || 'No name set';
                 document.getElementById('user-setting-age').value = data.user_birthday || '';
                 document.getElementById('user-setting-city').value = data.location_city || '';
                 document.getElementById('user-setting-latitude').value = data.location_latitude || '';
@@ -332,8 +332,7 @@ document.addEventListener('DOMContentLoaded', () => {
             smart_plug4_name: document.getElementById('user-setting-smartplug4-name').value,
             smart_plug4_ip:   document.getElementById('user-setting-smartplug4-ip').value,
 
-            // User info
-            user_name:        document.getElementById('user-setting-name').value,
+            // User info - Note: user_name is not included here since it's not editable
             user_birthday:    document.getElementById('user-setting-age').value,
             location_city:    document.getElementById('user-setting-city').value,
             location_latitude:  document.getElementById('user-setting-latitude').value,
@@ -500,6 +499,19 @@ document.addEventListener('DOMContentLoaded', () => {
     border: 1px solid #ccc;
     border-radius: 4px;
     box-sizing: border-box;
+}
+
+/* User display field styling */
+.user-display {
+    flex: 1;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    background-color: #f5f5f5;
+    display: flex;
+    align-items: center;
+    font-weight: 500;
+    color: #333;
 }
 
 /* Weekday block styling */

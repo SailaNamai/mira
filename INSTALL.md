@@ -29,17 +29,22 @@
     docker compose build mira
     ```
 
-5. Create your passkeys:
-    ```    
-    Open .../mira/services/passkeys_template.py with a text editor and follow the instructions.
+5. Create your passkeys and update docker-compose.yml:
+    ```
+    chmod +x user_management.sh
+    ./user_management.sh
+    ```
+    ```
+    chmod +x update_compose_yml.sh
+    ./update_compose_yml.sh 
     ```
 
 6. back at ```.../mira``` start with:
     ```
-    docker compose up mira
+    docker compose up
     ```
 
-7. When you see ```[Docker] GUI disabled, Flask servers only``` access with:
+7. After startup access with:
     ```
     # Phone/client from local network:
     https://Your.IP:5001/login?token=ONE_OF_YOUR_ALLOWED_KEYS 
@@ -93,10 +98,8 @@ Don't have Docker? [Read the docker-engine section](#install-docker-engine)
   </tr>
 </table>
 
-**DO NOT** overload your VRAM on initial startup. You'll crash with 'oom' and can either delete the DB (generates new on startup) or edit the settings manually.
-
 ### (soft) Dependencies
-**Vosk** (Voice-in, Speech to Text):
+If not using Whisper: **Vosk** (Voice-in, Speech to Text):
 
 To reduce error rates, record a wake word ("please") and drop it into ```...mira/static/sounds/please.wav```
 
@@ -105,10 +108,6 @@ To reduce error rates, record a wake word ("please") and drop it into ```...mira
 You need to buy (any) domain, which costs only a couple of currency units per year.
 The tunnel service itself is offered for free by Cloudflare. Point the tunnel towards **http** flask at port **5002**.
 If you make the tunnel a systemd service, make sure it retries for the app being alive, otherwise it fails silently, and you have to restart the tunnel manually after running the app.
-
-**LibreOffice**: 
-
-For file conversion.
 
 **VLC**:
 
@@ -121,7 +120,6 @@ chmod +x update_compose_yml.sh
 ```
 
 In VLC go to Tools, Preferences and set Show Settings: All. Then go to Interface, Main Interfaces and check web. Expand Main Interfaces and go to LUA. Enter the password you chose earlier, click save and restart VLC.
-
 
 Drop playlist into ```...mira/playlists```
 

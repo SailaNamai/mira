@@ -1,7 +1,9 @@
 # services.command_library.py
+from flask import session
 
-from services.config import HasAttachment, PLAYLIST_STEM, PLUGS, ChatContext
-from services.llm_chat import ChatSession
+from services.user_managment import HasAttachment
+from services.config import PLAYLIST_STEM, PLUGS
+from services.llm_chat import ChatContext
 from services.llm_intent import ask_listify
 from services.media import media_play, media_pause, media_next, media_previous, playlist_load
 from services.shopping_list import new_shopping_list, append_shopping_list
@@ -9,12 +11,20 @@ from services.to_do_list import new_to_do_list, append_to_do_list
 from services.smart_plugs import turn_on, turn_off
 
 def command_lookup(command: str, user_msg: str) -> bool:
+
+    user_id = session["user_id"]
+
     # system
     if command in ("new chat", "new conversation"):
-        ChatContext.chat_session = ChatSession()
+        ChatContext.create_session(user_id)
         return True
     elif command == "remove attachment":
-        HasAttachment.set_attachment(False)
+        HasAttachment.set_attachment(user_id, False)
+        return True
+    elif command == "sleep mode":
+        media_pause()
+        for plug_name in PLUGS:
+            turn_off(plug_name)
         return True
 
     # music

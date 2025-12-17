@@ -3,31 +3,54 @@
 import re
 from pathlib import Path
 from pdfminer.high_level import extract_text
-from services.config import BASE_PATH, FileSupport
+from services.user_managment import FileSupport
+from services.config import BASE_PATH
 
-output = BASE_PATH / "temp" / "output.txt"
+def file_to_txt(input_file: Path, output_path):
+    """
+    Convert various file types to text.
 
-def file_to_txt(input_file: Path):
+    Args:
+        input_file (Path): Path to the input file
+        output_path (Path, optional): User-specific output path.
+    """
+
+    # Ensure directories exist
+    output_path.parent.mkdir(parents=True, exist_ok=True)
     temp_dir = BASE_PATH / "temp"
     temp_dir.mkdir(parents=True, exist_ok=True)
 
     ext = input_file.suffix.lower()
 
-    if ext == ".pdf":
-        text = extract_text_from_pdf(input_file)
+    try:
+        if ext == ".pdf":
+            text = extract_text_from_pdf(input_file)
 
-    elif ext == ".txt" or ext in FileSupport.PLAIN_TEXT_EXTENSIONS:
-        text = input_file.read_text(encoding="utf-8")
+        elif ext == ".txt" or ext in FileSupport.PLAIN_TEXT_EXTENSIONS:
+            text = input_file.read_text(encoding="utf-8")
 
-    elif ext == ".rtf":
-        text = extract_text_from_rtf(input_file)
+        elif ext == ".rtf":
+            text = extract_text_from_rtf(input_file)
 
-    else:
-        # For unsupported formats, either skip or provide a fallback
-        text = f"Unsupported file format: {ext}. Supported formats: .txt, .rtf, .pdf and plain text files."
+        else:
+            # For unsupported formats, provide helpful message
+            supported = ", ".join(list(FileSupport.PLAIN_TEXT_EXTENSIONS) + [".pdf", ".rtf", ".txt"])
+            text = f"Unsupported file format: {ext}. Supported formats: {supported}."
 
-    with open(output, "w", encoding="utf-8") as f:
+        # Handle empty content case
+        if not text or text.strip() == "":
+            text = f"No readable content found in file: {input_file.name}"
+
+    except Exception as e:
+        print(f"Error processing file {input_file}: {e}")
+        text = f"Error processing file: {str(e)}"
+
+    # Write to user-specific output path
+    with open(output_path, "w", encoding="utf-8") as f:
         f.write(text)
+
+    print(f"Converted {input_file} to {output_path}")
+    return output_path
 
 def extract_text_from_pdf(pdf_path: Path) -> str:
     return extract_text(str(pdf_path))

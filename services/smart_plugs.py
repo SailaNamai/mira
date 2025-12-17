@@ -16,6 +16,7 @@ def load_plugs_from_db():
         ip_key = f"smart_plug{i}_ip"
         name = plug_data.get(name_key)
         ip = plug_data.get(ip_key)
+        print(f"[Utility] Plug '{name}' loaded with IP '{ip}'.")
         if name:
             PLUGS[name.lower()] = ip or None
 
@@ -23,19 +24,21 @@ def _send_command(name: str, action: str):
     """Internal helper."""
     ip = PLUGS.get(name.lower())
     if not ip:
-        print(f"[SmartPlug] No IP configured for plug '{name}'")
+        print(f"[Utility] No IP configured for plug '{name}'")
         return
 
     url = f"http://{ip}/cm?cmnd=Power%20{action.capitalize()}"
     try:
         requests.get(url)
     except Exception as e:
-        print(f"[SmartPlug] Error sending command to '{name}': {e}")
+        print(f"[Utility] Error sending command to '{name}': {e}")
 
 def turn_on(name: str):
     """Turn ON the plug with the given name."""
+    print(f"[Utility] '{name}' turned on.")
     _send_command(name, "On")
 
 def turn_off(name: str):
     """Turn OFF the plug with the given name."""
+    print(f"[Utility] '{name}' turned off.")
     _send_command(name, "Off")

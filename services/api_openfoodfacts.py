@@ -14,58 +14,12 @@ def generate_machine_uid():
     It is:
       - Deterministic per machine
       - Effectively irreversible due to SHA-256 and truncation
-      - Free of personal identifiers, suitable for privacy-conscious API usage
+      - Free of personal identifiers
     Example output: '9f3a1c2b7e4d'
     """
     fingerprint = f"{platform.node()}|{uuid.getnode()}|{platform.system()}|{platform.release()}"
     uid = hashlib.sha256(fingerprint.encode()).hexdigest()[:12]
     return uid
-
-def search_products(query: str, page_size: int = 5):
-    """
-    Search OpenFoodFacts by product name or keyword using v2 API.
-    """
-    url = "https://world.openfoodfacts.net/api/v2/search"
-    headers = {
-        "User-Agent": f"MiraNutritionModule/UID: {generate_machine_uid()} - Python Script"
-    }
-    params = {
-        "fields": "product_name,nutriments,quantity,serving_size,code,brands",
-        "page_size": page_size,
-        "q": query,  # <-- correct parameter
-        "sort_by": "popularity_key",  # optional, helps get relevant products
-    }
-
-    try:
-        response = requests.get(url, headers=headers, params=params, timeout=15)
-        response.raise_for_status()
-        data = response.json()
-
-        products = []
-        for product in data.get("products", []):
-            nutriments = product.get("nutriments", {})
-            products.append({
-                "barcode": product.get("code"),
-                "product_name": product.get("product_name"),
-                "brands": product.get("brands"),
-                "nutriments": {
-                    "energy_kcal_100g": nutriments.get("energy-kcal_100g"),
-                    "energy_kcal_serving": nutriments.get("energy-kcal_serving"),
-                    "carbohydrates_100g": nutriments.get("carbohydrates_100g"),
-                    "carbohydrates_serving": nutriments.get("carbohydrates_serving"),
-                    "fat_100g": nutriments.get("fat_100g"),
-                    "fat_serving": nutriments.get("fat_serving"),
-                    "proteins_100g": nutriments.get("proteins_100g"),
-                    "proteins_serving": nutriments.get("proteins_serving"),
-                },
-                "quantity": normalize_amount(product.get("quantity")),
-                "serving_size": normalize_amount(product.get("serving_size")),
-            })
-        return products
-
-    except requests.RequestException as e:
-        print(f"[OpenFoodFacts] Error searching products: {e}")
-        return []
 
 def lookup_barcode(barcode):
     url = f"https://world.openfoodfacts.org/api/v0/product/{barcode}.json"
@@ -146,24 +100,13 @@ def normalize_amount(value: str) -> float | None:
     elif unit in ("l",):
         return num * 1000
     else:
-        # Unknown unit → return raw number
+        # Undefined
         return num
 
 if __name__ == "__main__":
     import json
-
     # Barcode lookup
-    barcode_test = False
-    if barcode_test:
-        test_barcode = "5449000038715"
-        print(f"Testing lookup for barcode: {test_barcode}")
-        result = lookup_barcode(test_barcode)
-        print(json.dumps(result, indent=2, ensure_ascii=False))
-
-    # Search term lookup
-    search_test = True
-    if search_test:
-        test_query = "Nutella"
-        print(f"Testing search for query: {test_query}")
-        results = search_products(test_query, page_size=5)
-        print(json.dumps(results, indent=2, ensure_ascii=False))
+    test_barcode = "5449000038715"
+    print(f"Testing lookup for barcode: {test_barcode}")
+    result = lookup_barcode(test_barcode)
+    print(json.dumps(result, indent=2, ensure_ascii=False))

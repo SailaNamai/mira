@@ -4,9 +4,30 @@
 
 ### Backend
 - Expose an API for modules/addons
+pip install gunicorn gevent
+Successfully installed gevent-25.9.1 gunicorn-23.0.0 zope.event-6.1 zope.interface-8.1.1
 
 ### IsVoice + Textify
-- Implement additional options (Canary (huge model), FW (CUDA13 not supported), ...
+- ~~Implement additional options (Canary (huge model), FW (CUDA13 not supported), ...~~
+
+Did this in dev, but container works without:
+    pip install --upgrade transformers accelerate datasets[audio]
+    Successfully installed accelerate-1.12.0 datasets-4.4.1 transformers-4.57.3
+    pip install psutil
+
+download.sh update:
+https://huggingface.co/distil-whisper/distil-large-v3/tree/main
+./mira/static/distil-whisper/
+├── config.json
+├── generation_config.json
+├── model.safetensors
+├── preprocessor_config.json
+├── tokenizer.json
+├── tokenizer_config.json
+├── special_tokens_map.json
+├── vocab.json
+├── merges.txt
+└── README.md
 
 ### IsDetermined
 - Already builds a DB of input and matched command.

@@ -14,7 +14,7 @@ log_intent_prompt = logs / "prompt_intent.log"
 ########################################################################################
 """#############################       Mira chat       ##############################"""
 ########################################################################################
-def get_system_prompt_chat():
+def get_system_prompt_chat(user_id: int):
     persona = """You are Mira, a charismatic assistant.
 1. You are a helpful, knowledgeable conversational partner.
 2. Voice: curious, witty, warm.
@@ -25,20 +25,16 @@ def get_system_prompt_chat():
 7. When a new conversation starts, greet by name and reference the schedule if relevant. Use the available information about the user to personalize greetings. Use the user profile sparingly so task context remains primary. When the schedule is undefined: Assume free-time. 7.4 Assume free-time on weekends."""
 
     # get dynamic stuff for the user block and format
-    user = GetDB.get_user_name()
-    bday = _bulletin(GetDB.get_user_birthday())
+    user = GetDB.get_user_name(user_id)
+    bday = _bulletin(GetDB.get_user_birthday(user_id))
     weekday = datetime.now().strftime("%A")
-    schedule = _reverse_lines(_indent(_bulletin(GetDB.get_schedule(weekday)), 2))
-    additional_info = _indent(_bulletin(GetDB.get_additional_info()), 1)
+    schedule = _reverse_lines(_indent(_bulletin(GetDB.get_schedule(user_id, weekday)), 2))
+    additional_info = _indent(_bulletin(GetDB.get_additional_info(user_id)), 1)
 
     user_info = _indent(f"""- The users name is {user}.
     - Born on {bday}.
     - Schedule for today (can be none):\n{schedule}
     - Additional information:\n{additional_info}""", 1)
-
-    #time = datetime.now().strftime("%d.%m.%Y, Time: %H:%M")
-    #timestamp = weekday + ", " + time
-    #time_info = _indent(f"""- It is {timestamp}""", 1)
 
     system_prompt = f"{persona}\n{user_info}" #\n{time_info}
     with open(log_chat_prompt, "w", encoding="utf-8") as f:
@@ -68,7 +64,8 @@ def get_system_prompt_intent():
         - remove attachment
         - new ShoppingList or append ShoppingList
         - new ToDoList or append ToDoList
-        - get weather"""
+        - get weather
+        - sleep mode"""
 
     smart_plugs_str = "\n".join(
         f"on {name.capitalize()}\noff {name.capitalize()}" for name in PLUGS
@@ -86,7 +83,7 @@ def get_system_prompt_intent():
 ########################################################################################
 """#############################        Weather        ##############################"""
 ########################################################################################
-def get_system_prompt_weather():
+def get_system_prompt_weather(user_id: int):
     system = """Your task is to a give brief, concise, strictly factual answer based on the provided weather data.
     - Emit plain text optimized for TTS: 
         - No markup, no emoji, no special characters. 
@@ -116,7 +113,7 @@ def get_system_prompt_weather():
     If precipitation, snow, etc. are not listed they are 0.\n"""
 
     # get location, weather data and format
-    location_data = GetDB.get_location()
+    location_data = GetDB.get_location(user_id)
     city = location_data.get("location_city")
     location = f"- Weather forecast for {city}:\n"
 
